@@ -43,6 +43,7 @@ export type WaypointType =
   | "water"
   | "track"
   | "sighting"
+  | "scat"
   | "harvest"
   | "trailhead"
   | "gate"
@@ -135,12 +136,43 @@ export const WAYPOINT_TYPES: readonly WaypointType[] = [
   "water",
   "track",
   "sighting",
+  "scat",
   "harvest",
   "trailhead",
   "gate",
   "hazard",
   "custom",
 ] as const;
+
+export const WAYPOINT_TYPE_LABELS: Record<WaypointType, string> = {
+  stand: "Stand",
+  blind: "Blind",
+  truck: "Truck",
+  camp: "Camp",
+  trail_camera: "Trail camera",
+  scrape: "Scrape",
+  rub: "Rub",
+  bedding: "Bedding",
+  food: "Food",
+  water: "Water",
+  track: "Track",
+  sighting: "Sighting",
+  scat: "Scat",
+  harvest: "Harvest",
+  trailhead: "Trailhead",
+  gate: "Gate",
+  hazard: "Hazard",
+  custom: "Custom",
+};
+
+export const OBSERVATION_WAYPOINT_TYPES: readonly WaypointType[] = [
+  "sighting",
+  "scat",
+  "scrape",
+  "rub",
+  "track",
+  "harvest",
+];
 
 export const SPECIES: readonly SpeciesId[] = [
   "whitetail",

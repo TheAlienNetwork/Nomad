@@ -32,6 +32,10 @@ function waypointsToFc(waypoints: Waypoint[]): HabitatCollection {
         name: waypoint.name,
         type: waypoint.type,
         id: waypoint.id,
+        kind:
+          waypoint.type === "sighting" || waypoint.type === "scat"
+            ? "observation"
+            : "mark",
       },
       geometry: {
         type: "Point",
@@ -106,7 +110,13 @@ function ensureOverlays(map: Map): void {
       source: "waypoints",
       paint: {
         "circle-radius": 6,
-        "circle-color": "#fb923c",
+        "circle-color": [
+          "match",
+          ["get", "kind"],
+          "observation",
+          "#f97316",
+          "#e6a31a",
+        ],
         "circle-stroke-width": 2,
         "circle-stroke-color": "#1a1208",
       },

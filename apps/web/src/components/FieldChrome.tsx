@@ -4,12 +4,16 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import {
   BOUNDARY_CONFIDENCE_WARNING,
+  OBSERVATION_WAYPOINT_TYPES,
+  SPECIES,
   WAYPOINT_TYPES,
+  WAYPOINT_TYPE_LABELS,
   formatBearing,
   formatDistance,
   haversineMeters,
   initialBearingDegrees,
   type IdentifyResult,
+  type SpeciesId,
   type Waypoint,
   type WaypointType,
 } from "@huntos/core";
@@ -278,7 +282,12 @@ export function PropertySheet({
 export function WaypointSheet({
   onSave,
 }: {
-  onSave: (input: { type: WaypointType; name: string; notes: string }) => void;
+  onSave: (input: {
+    type: WaypointType;
+    name: string;
+    notes: string;
+    species?: SpeciesId;
+  }) => void;
 }) {
   const sheet = useHuntStore((state) => state.sheet);
   const draftType = useHuntStore((state) => state.draftWaypointType);
@@ -290,33 +299,83 @@ export function WaypointSheet({
         onSubmit={(event) => {
           event.preventDefault();
           const data = new FormData(event.currentTarget);
+          const type = (data.get("type") as WaypointType) || draftType;
+          const speciesValue = String(data.get("species") || "");
           onSave({
-            type: (data.get("type") as WaypointType) || draftType,
-            name: String(data.get("name") || "Untitled"),
+            type,
+            name: String(data.get("name") || WAYPOINT_TYPE_LABELS[type]),
             notes: String(data.get("notes") || ""),
+            species: SPECIES.includes(speciesValue as SpeciesId)
+              ? (speciesValue as SpeciesId)
+              : undefined,
           });
         }}
       >
+        <p className="font-mono text-[10px] tracking-[0.2em] text-field-mist/50">
+          OBSERVATIONS
+        </p>
+        <div className="grid grid-cols-3 gap-2">
+          {OBSERVATION_WAYPOINT_TYPES.map((type) => (
+            <button
+              key={type}
+              type="button"
+              className={draftType === type ? "btn-primary" : "btn-dock"}
+              onClick={() => useHuntStore.setState({ draftWaypointType: type })}
+            >
+              {WAYPOINT_TYPE_LABELS[type]}
+            </button>
+          ))}
+        </div>
         <label className="block text-sm">
           Type
-          <select name="type" defaultValue={draftType} className="input mt-1">
+          <select
+            name="type"
+            value={draftType}
+            className="input mt-1"
+            onChange={(event) =>
+              useHuntStore.setState({
+                draftWaypointType: event.target.value as WaypointType,
+              })
+            }
+          >
             {WAYPOINT_TYPES.map((type) => (
               <option key={type} value={type}>
-                {type}
+                {WAYPOINT_TYPE_LABELS[type]}
               </option>
             ))}
           </select>
         </label>
         <label className="block text-sm">
           Name
-          <input name="name" className="input mt-1" defaultValue="Field mark" />
+          <input
+            name="name"
+            className="input mt-1"
+            defaultValue={WAYPOINT_TYPE_LABELS[draftType]}
+            key={draftType}
+          />
+        </label>
+        <label className="block text-sm">
+          Species
+          <select name="species" className="input mt-1" defaultValue="">
+            <option value="">Unknown / not specified</option>
+            {SPECIES.map((species) => (
+              <option key={species} value={species}>
+                {species.replace("_", " ")}
+              </option>
+            ))}
+          </select>
         </label>
         <label className="block text-sm">
           Notes
-          <textarea name="notes" className="input mt-1" rows={3} />
+          <textarea
+            name="notes"
+            className="input mt-1"
+            rows={3}
+            placeholder="Direction of travel, number of animals, freshness…"
+          />
         </label>
         <p className="text-xs text-field-mist/60">
-          Saved locally first (private). Syncs when a link is available.
+          Saved locally first (private). Uses GPS if available, otherwise the last tap or map center.
         </p>
         <button type="submit" className="btn-primary w-full">
           SAVE OFFLINE

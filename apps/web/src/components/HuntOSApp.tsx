@@ -10,6 +10,7 @@ import {
   type IdentifyResult,
   type Track,
   type Waypoint,
+  type SpeciesId,
   type WaypointType,
 } from "@huntos/core";
 import { fetchWeather, identifyLand, runScoutRequest, syncWaypoints } from "@/lib/api";
@@ -174,6 +175,12 @@ export function HuntOSApp() {
       return { latitude: gps.latitude, longitude: gps.longitude };
     }
     if (intelPoint) return { latitude: intelPoint.lat, longitude: intelPoint.lng };
+    if (mapBounds) {
+      return {
+        latitude: (mapBounds.south + mapBounds.north) / 2,
+        longitude: (mapBounds.west + mapBounds.east) / 2,
+      };
+    }
     return null;
   };
 
@@ -181,6 +188,7 @@ export function HuntOSApp() {
     type: WaypointType;
     name: string;
     notes: string;
+    species?: SpeciesId;
   }) => {
     if (!userId) return;
     const point = currentPoint();
@@ -196,6 +204,8 @@ export function HuntOSApp() {
       longitude: point.longitude,
       createdAt: now,
       updatedAt: now,
+      observedAt: now,
+      species: input.species,
       photos: [],
       tags: [],
       visibility: "private",
