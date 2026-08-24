@@ -80,6 +80,11 @@ export interface AppState {
   scoutResult?: Record<string, unknown>;
   mapBounds?: BoundingBox;
   downloadProgress?: { done: number; total: number; label: string };
+  mapTarget?: {
+    requestId: string;
+    placeId: string;
+    bounds: BoundingBox;
+  };
 }
 
 export const defaultLayers = (): LayerState => ({
@@ -126,4 +131,14 @@ export function openSheet(sheet: SheetId): void {
 
 export function closeSheet(): void {
   useHuntStore.setState({ sheet: "none" });
+}
+
+export function flyToBounds(placeId: string, bounds: BoundingBox): void {
+  useHuntStore.setState({
+    mapTarget: {
+      requestId: crypto.randomUUID(),
+      placeId,
+      bounds,
+    },
+  });
 }

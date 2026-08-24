@@ -13,7 +13,8 @@ import {
   type Waypoint,
   type WaypointType,
 } from "@huntos/core";
-import { closeSheet, openSheet, useHuntStore, type LayerState } from "@/lib/store";
+import { TEXAS_PUBLIC_LAND_PLACES, matchPublicLandPlace } from "@/lib/places";
+import { closeSheet, flyToBounds, openSheet, useHuntStore, type LayerState } from "@/lib/store";
 
 function TruthBadge({ layer }: { layer: "authoritative" | "observed" | "inferred" }) {
   const label =
@@ -66,13 +67,25 @@ export function TopBar() {
         <p className="text-xs text-field-mist/70">Hunting Intelligence. Anywhere.</p>
       </div>
       <div className="flex max-w-[58%] flex-wrap justify-end gap-2">
-        <label className="panel pointer-events-auto flex items-center gap-2 px-3 py-2">
+        <form
+          className="panel pointer-events-auto flex items-center gap-2 px-3 py-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const query = String(new FormData(event.currentTarget).get("q") || "");
+            const place = matchPublicLandPlace(query);
+            if (place) {
+              flyToBounds(place.id, place.bounds);
+              closeSheet();
+            }
+          }}
+        >
           <span className="font-mono text-[10px] text-field-mist/50">SEARCH</span>
           <input
-            className="w-40 bg-transparent text-sm outline-none placeholder:text-field-mist/30"
-            placeholder="coords / waypoint / unit"
+            name="q"
+            className="w-44 bg-transparent text-sm outline-none placeholder:text-field-mist/30"
+            placeholder="Davy Crockett / Sam Houston"
           />
-        </label>
+        </form>
         <button
           type="button"
           className="panel pointer-events-auto px-3 py-2 text-left"
@@ -477,6 +490,31 @@ export function AreasSheet({
   if (sheet !== "areas") return null;
   return (
     <Sheet title="HUNT AREAS">
+      <p className="mb-2 font-mono text-[10px] tracking-[0.2em] text-field-mist/50">
+        TEXAS PUBLIC LAND (PAD-US)
+      </p>
+      <p className="mb-3 text-xs text-field-mist/60">
+        These jump to a map frame. Boundaries still come from PAD-US Fee — they are not drawn by HUNT//OS.
+      </p>
+      <ul className="mb-4 space-y-2 text-sm">
+        {TEXAS_PUBLIC_LAND_PLACES.map((place) => (
+          <li key={place.id}>
+            <button
+              type="button"
+              className="w-full rounded border border-field-line p-3 text-left"
+              onClick={() => {
+                flyToBounds(place.id, place.bounds);
+                closeSheet();
+              }}
+            >
+              <p>{place.name}</p>
+              <p className="font-mono text-[10px] text-field-mist/50">
+                {place.agency} · {place.state} · PAD-US Fee
+              </p>
+            </button>
+          </li>
+        ))}
+      </ul>
       <form
         className="mb-3 flex gap-2"
         onSubmit={(event) => {
@@ -486,7 +524,7 @@ export function AreasSheet({
           event.currentTarget.reset();
         }}
       >
-        <input name="name" className="input" placeholder="Sam Houston — North Area" />
+        <input name="name" className="input" placeholder="Save visible extent" />
         <button type="submit" className="btn-primary">
           SAVE
         </button>

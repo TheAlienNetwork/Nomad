@@ -3,6 +3,8 @@
  * This file holds adapters/configuration only — no application logic
  * and no hardcoded hunting regulations or season dates.
  */
+export { TEXAS_PUBLIC_LAND_PLACES } from "./places";
+
 export const TEXAS_STATE_MODULE = {
   code: "TX",
   name: "Texas",

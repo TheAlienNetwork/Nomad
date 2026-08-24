@@ -200,6 +200,7 @@ export function MapView({ onIdentify, onIntel, habitat }: MapViewProps) {
   const waypoints = useHuntStore((state) => state.waypoints);
   const tracks = useHuntStore((state) => state.tracks);
   const gps = useHuntStore((state) => state.gps);
+  const mapTarget = useHuntStore((state) => state.mapTarget);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -270,6 +271,18 @@ export function MapView({ onIdentify, onIntel, habitat }: MapViewProps) {
       mapRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapTarget) return;
+    map.fitBounds(
+      [
+        [mapTarget.bounds.west, mapTarget.bounds.south],
+        [mapTarget.bounds.east, mapTarget.bounds.north],
+      ],
+      { padding: 48, maxZoom: 12, duration: 1400 },
+    );
+  }, [mapTarget]);
 
   useEffect(() => {
     const map = mapRef.current;
