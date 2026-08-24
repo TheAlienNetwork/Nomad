@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: #070b08;
+  color: #e7efe6;
+}
+
+.panel {
+  @apply rounded-2xl border border-field-line bg-field-panel/90 shadow-instrument backdrop-blur;
+}
+
+.btn-primary {
+  @apply min-h-12 rounded-2xl bg-field-amber px-4 font-mono text-xs tracking-[0.18em] text-field-ink;
+}
+
+.btn-dock {
+  @apply min-h-14 rounded-2xl border border-field-line bg-field-panel/95 px-1 font-mono text-[10px] tracking-[0.12em] text-field-mist;
+}
+
+.btn-ghost {
+  @apply font-mono text-[10px] tracking-[0.16em] text-field-mist/70;
+}
+
+.input {
+  @apply w-full rounded-xl border border-field-line bg-black/30 px-3 py-2 text-field-mist outline-none;
+}
+
+.reticle {
+  background:
+    linear-gradient(to right, transparent calc(50% - 0.5px), rgba(230, 163, 26, 0.18) 50%, transparent calc(50% + 0.5px)),
+    linear-gradient(to bottom, transparent calc(50% - 0.5px), rgba(230, 163, 26, 0.18) 50%, transparent calc(50% + 0.5px));
+  mask-image: radial-gradient(circle at center, transparent 70px, black 140px);
+}
+
+.field-mode .btn-dock,
+.field-mode .btn-primary {
+  min-height: 4.25rem;
+}
+
+.maplibregl-ctrl-attrib {
+  font-size: 10px;
+}
+
+.maplibregl-popup-content {
+  background: #101610;
+  color: #e7efe6;
+}
