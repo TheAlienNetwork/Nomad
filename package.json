@@ -1,0 +1,21 @@
+{
+  "name": "huntos",
+  "private": true,
+  "version": "0.1.0",
+  "description": "HUNT//OS — offline-first hunting intelligence and mapping platform",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @huntos/web",
+    "build": "npm run build -w @huntos/core && npm run build -w @huntos/web",
+    "lint": "npm run lint -w @huntos/web",
+    "typecheck": "npm run typecheck -w @huntos/core && npm run typecheck -w @huntos/web",
+    "test": "npm run test -w @huntos/core",
+    "test:all": "npm run test -w @huntos/core && npm run test -w @huntos/web"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
