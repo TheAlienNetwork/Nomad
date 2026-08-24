@@ -75,6 +75,10 @@ None are required for the V1 vertical slice.
 
 Copy `.env.example` to `apps/web/.env.local`.
 
+Production (single-node VPS): set `AUTH_SECRET`, run `npm run build && npm run start`, back up `HUNTOS_DATA_FILE`. See `docs/PRODUCTION.md`. `GET /api/health` must be ok.
+
+This is a private/team V1, not a nationwide consumer launch. Regulations and complete Texas public access are still not invented.
+
 ## Safety
 
 - PAD-US Fee is an aggregation. Managing agencies remain the official source.

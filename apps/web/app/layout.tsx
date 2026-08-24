@@ -19,6 +19,7 @@ const mono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "HUNT//OS",
   description: "Hunting Intelligence. Anywhere.",
+  icons: { icon: "/favicon.svg" },
 };
 
 export default function RootLayout({

@@ -22,7 +22,8 @@ export type SheetId =
   | "areas"
   | "assistant"
   | "gps"
-  | "return";
+  | "return"
+  | "account";
 
 export interface LayerState {
   publicLand: boolean;
@@ -49,8 +50,14 @@ export interface ScoutDraft {
   stage: string;
 }
 
+export interface AccountUser {
+  id: string;
+  email: string;
+}
+
 export interface AppState {
   userId: string | null;
+  account: AccountUser | null;
   online: boolean;
   fieldMode: boolean;
   basemap: BasemapId;
@@ -108,6 +115,7 @@ export const defaultLayers = (): LayerState => ({
 
 export const useHuntStore = create<AppState>(() => ({
   userId: null,
+  account: null,
   online: typeof navigator === "undefined" ? true : navigator.onLine,
   fieldMode: false,
   basemap: "topo",

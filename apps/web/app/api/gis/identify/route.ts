@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
 import { createArcgisProvider, unavailableIdentify } from "@huntos/core";
 import { listDatasets, recordHealth } from "@/server/registry";
+import { clientKey, rateLimit } from "@/server/rate-limit";
 
 export async function GET(request: Request) {
+  const limited = rateLimit(clientKey(request, "identify"), 30, 60_000);
+  if (!limited.ok) {
+    return NextResponse.json({ error: "Identify rate limited." }, { status: 429 });
+  }
   const url = new URL(request.url);
   const lng = Number(url.searchParams.get("lng"));
   const lat = Number(url.searchParams.get("lat"));

@@ -64,6 +64,7 @@ export function TopBar() {
   const weather = useHuntStore((state) => state.weather);
   const online = useHuntStore((state) => state.online);
   const gps = useHuntStore((state) => state.gps);
+  const account = useHuntStore((state) => state.account);
   return (
     <header className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-3 p-3">
       <div className="panel pointer-events-auto px-3 py-2">
@@ -114,6 +115,16 @@ export function TopBar() {
             {gps.source === "none" ? "NO FIX" : gps.source.toUpperCase()}
           </p>
         </div>
+        <button
+          type="button"
+          className="panel pointer-events-auto px-3 py-2 text-left"
+          onClick={() => openSheet("account")}
+        >
+          <p className="font-mono text-[10px] text-field-mist/50">ACCOUNT</p>
+          <p className="max-w-[9rem] truncate font-mono text-sm">
+            {account?.email ?? "SIGN IN"}
+          </p>
+        </button>
       </div>
     </header>
   );
@@ -652,6 +663,74 @@ function Readout({ label, value }: { label: string; value: string }) {
   );
 }
 
+export function AccountSheet({
+  onLogin,
+  onRegister,
+  onLogout,
+  error,
+}: {
+  onLogin: (email: string, password: string) => void;
+  onRegister: (email: string, password: string) => void;
+  onLogout: () => void;
+  error?: string;
+}) {
+  const sheet = useHuntStore((state) => state.sheet);
+  const account = useHuntStore((state) => state.account);
+  if (sheet !== "account") return null;
+  return (
+    <Sheet title="ACCOUNT">
+      {account ? (
+        <div className="space-y-3 text-sm">
+          <p>Signed in as {account.email}</p>
+          <p className="text-field-mist/70">
+            Server sync is on. Stands, cameras, harvests, and tracks stay private unless you change that later.
+          </p>
+          <button type="button" className="btn-primary w-full" onClick={onLogout}>
+            SIGN OUT
+          </button>
+        </div>
+      ) : (
+        <form
+          className="space-y-3"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const data = new FormData(event.currentTarget);
+            onLogin(String(data.get("email") || ""), String(data.get("password") || ""));
+          }}
+        >
+          <p className="text-sm text-field-mist/70">
+            Field marks work offline without an account. Sign in to persist them on the server.
+          </p>
+          <input name="email" type="email" className="input" placeholder="you@example.com" required />
+          <input
+            name="password"
+            type="password"
+            className="input"
+            placeholder="10+ chars with a number"
+            required
+          />
+          {error && <p className="text-sm text-field-danger">{error}</p>}
+          <button type="submit" className="btn-primary w-full">
+            SIGN IN
+          </button>
+          <button
+            type="button"
+            className="btn-dock w-full"
+            onClick={(event) => {
+              const form = (event.currentTarget as HTMLButtonElement).form;
+              if (!form) return;
+              const data = new FormData(form);
+              onRegister(String(data.get("email") || ""), String(data.get("password") || ""));
+            }}
+          >
+            CREATE ACCOUNT
+          </button>
+        </form>
+      )}
+    </Sheet>
+  );
+}
+
 export function FieldExtras() {
   return (
     <div className="pointer-events-auto absolute left-3 top-28 z-20 flex flex-col gap-2">
@@ -663,6 +742,9 @@ export function FieldExtras() {
       </button>
       <Link className="btn-dock text-center" href="/admin">
         DATA HEALTH
+      </Link>
+      <Link className="btn-dock text-center" href="/privacy">
+        PRIVACY
       </Link>
     </div>
   );

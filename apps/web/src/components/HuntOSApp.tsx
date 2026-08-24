@@ -13,7 +13,17 @@ import {
   type SpeciesId,
   type WaypointType,
 } from "@huntos/core";
-import { fetchWeather, identifyLand, runScoutRequest, syncWaypoints } from "@/lib/api";
+import {
+  fetchSession,
+  fetchWeather,
+  identifyLand,
+  loginAccount,
+  logoutAccount,
+  pullWaypoints,
+  registerAccount,
+  runScoutRequest,
+  syncWaypoints,
+} from "@/lib/api";
 import {
   allHuntAreas,
   allWaypoints,
@@ -22,8 +32,9 @@ import {
   saveTrack,
   saveWaypoint,
 } from "@/lib/offline";
-import { closeSheet, openSheet, useHuntStore } from "@/lib/store";
+import { closeSheet, flyToBounds, openSheet, useHuntStore } from "@/lib/store";
 import {
+  AccountSheet,
   AreasSheet,
   Dock,
   DownloadSheet,
@@ -38,10 +49,24 @@ import {
 } from "./FieldChrome";
 import { MapView, type HabitatCollection } from "./MapView";
 
+function mergeWaypoints(local: Waypoint[], remote: Waypoint[]): Waypoint[] {
+  const byId = new Map<string, Waypoint>();
+  for (const waypoint of local) byId.set(waypoint.id, waypoint);
+  for (const waypoint of remote) {
+    const existing = byId.get(waypoint.id);
+    if (!existing || waypoint.updatedAt >= existing.updatedAt) {
+      byId.set(waypoint.id, { ...waypoint, syncStatus: "synced" });
+    }
+  }
+  return [...byId.values()];
+}
+
 export function HuntOSApp() {
   const [habitat, setHabitat] = useState<HabitatCollection | null>(null);
   const [intelPoint, setIntelPoint] = useState<{ lng: number; lat: number }>();
+  const [accountError, setAccountError] = useState<string>();
   const userId = useHuntStore((state) => state.userId);
+  const account = useHuntStore((state) => state.account);
   const waypoints = useHuntStore((state) => state.waypoints);
   const tracks = useHuntStore((state) => state.tracks);
   const gps = useHuntStore((state) => state.gps);
@@ -62,7 +87,13 @@ export function HuntOSApp() {
       const identity = await getOrCreateIdentity();
       const stored = await allWaypoints(identity.id);
       const areas = await allHuntAreas(identity.id);
-      useHuntStore.setState({ userId: identity.id, waypoints: stored, huntAreas: areas });
+      const session = await fetchSession().catch(() => null);
+      useHuntStore.setState({
+        userId: identity.id,
+        account: session,
+        waypoints: stored,
+        huntAreas: areas,
+      });
     })();
     return () => {
       window.removeEventListener("online", onOnline);
@@ -112,7 +143,7 @@ export function HuntOSApp() {
   }, [gps.latitude, gps.longitude]);
 
   useEffect(() => {
-    if (!userId || !navigator.onLine) return;
+    if (!userId || !account || !navigator.onLine) return;
     const pending = outgoingQueue(
       waypoints.map((waypoint) => ({
         localId: waypoint.id,
@@ -125,7 +156,7 @@ export function HuntOSApp() {
       })),
     );
     if (pending.length === 0) return;
-    void syncWaypoints(userId, pending.map((item) => item.payload))
+    void syncWaypoints(pending.map((item) => item.payload))
       .then((synced) => {
         useHuntStore.setState({
           waypoints: waypoints.map((waypoint) => {
@@ -135,7 +166,7 @@ export function HuntOSApp() {
         });
       })
       .catch(() => undefined);
-  }, [userId, waypoints]);
+  }, [account, userId, waypoints]);
 
   const runIdentify = useCallback(async (lng: number, lat: number) => {
     setIntelPoint({ lng, lat });
@@ -229,6 +260,16 @@ export function HuntOSApp() {
       truckWaypointId:
         input.type === "truck" ? queued.id : useHuntStore.getState().truckWaypointId,
     });
+    flyToBounds(
+      queued.id,
+      {
+        west: point.longitude - 0.01,
+        south: point.latitude - 0.01,
+        east: point.longitude + 0.01,
+        north: point.latitude + 0.01,
+      },
+      point,
+    );
     closeSheet();
   };
 
@@ -424,6 +465,40 @@ export function HuntOSApp() {
       <DownloadSheet onDownload={() => void downloadArea()} />
       <ReturnSheet truck={truck} />
       <AreasSheet onSaveArea={(name) => void saveArea(name)} />
+      <AccountSheet
+        error={accountError}
+        onLogin={(email, password) => {
+          setAccountError(undefined);
+          void loginAccount(email, password)
+            .then(async (user) => {
+              const remote = await pullWaypoints();
+              useHuntStore.setState({
+                account: user,
+                waypoints: mergeWaypoints(useHuntStore.getState().waypoints, remote),
+              });
+              closeSheet();
+            })
+            .catch((error: unknown) =>
+              setAccountError(error instanceof Error ? error.message : "Login failed."),
+            );
+        }}
+        onRegister={(email, password) => {
+          setAccountError(undefined);
+          void registerAccount(email, password)
+            .then((user) => {
+              useHuntStore.setState({ account: user });
+              closeSheet();
+            })
+            .catch((error: unknown) =>
+              setAccountError(error instanceof Error ? error.message : "Registration failed."),
+            );
+        }}
+        onLogout={() => {
+          void logoutAccount().then(() => {
+            useHuntStore.setState({ account: null });
+          });
+        }}
+      />
       <GpsSheet
         onStartTrack={() => void startTrack()}
         onPauseTrack={() => {

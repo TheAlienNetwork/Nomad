@@ -1,7 +1,7 @@
 import type { DatasetRecord, IdentifyResult, Waypoint, WeatherSnapshot } from "@huntos/core";
 
-export function userHeaders(userId: string): HeadersInit {
-  return { "x-huntos-user": userId, "content-type": "application/json" };
+export function jsonHeaders(): HeadersInit {
+  return { "content-type": "application/json" };
 }
 
 export async function identifyLand(
@@ -23,20 +23,74 @@ export async function fetchWeather(
   return (await response.json()) as WeatherSnapshot;
 }
 
-export async function syncWaypoints(
-  userId: string,
-  waypoints: Waypoint[],
-): Promise<Waypoint[]> {
+export async function syncWaypoints(waypoints: Waypoint[]): Promise<Waypoint[]> {
   const response = await fetch("/api/sync", {
     method: "POST",
-    headers: userHeaders(userId),
+    credentials: "include",
+    headers: jsonHeaders(),
     body: JSON.stringify({ waypoints }),
   });
+  if (response.status === 401) {
+    throw new Error("Sign in to sync. Offline marks were kept on this device.");
+  }
   if (!response.ok) {
-    throw new Error("Sync endpoint unavailable.");
+    throw new Error("Sync endpoint unavailable. Offline marks were not discarded.");
   }
   const payload = (await response.json()) as { waypoints: Waypoint[] };
   return payload.waypoints;
+}
+
+export async function fetchSession(): Promise<{ id: string; email: string } | null> {
+  const response = await fetch("/api/auth/me", { credentials: "include" });
+  const payload = (await response.json()) as {
+    user: { id: string; email: string } | null;
+  };
+  return payload.user;
+}
+
+export async function registerAccount(email: string, password: string) {
+  const response = await fetch("/api/auth/register", {
+    method: "POST",
+    credentials: "include",
+    headers: jsonHeaders(),
+    body: JSON.stringify({ email, password }),
+  });
+  const payload = (await response.json()) as {
+    user?: { id: string; email: string };
+    error?: string;
+  };
+  if (!response.ok || !payload.user) {
+    throw new Error(payload.error ?? "Registration failed.");
+  }
+  return payload.user;
+}
+
+export async function loginAccount(email: string, password: string) {
+  const response = await fetch("/api/auth/login", {
+    method: "POST",
+    credentials: "include",
+    headers: jsonHeaders(),
+    body: JSON.stringify({ email, password }),
+  });
+  const payload = (await response.json()) as {
+    user?: { id: string; email: string };
+    error?: string;
+  };
+  if (!response.ok || !payload.user) {
+    throw new Error(payload.error ?? "Login failed.");
+  }
+  return payload.user;
+}
+
+export async function logoutAccount(): Promise<void> {
+  await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+}
+
+export async function pullWaypoints(): Promise<Waypoint[]> {
+  const response = await fetch("/api/sync", { credentials: "include" });
+  if (!response.ok) return [];
+  const payload = (await response.json()) as { waypoints?: Waypoint[] };
+  return payload.waypoints ?? [];
 }
 
 export async function fetchDatasets(): Promise<DatasetRecord[]> {

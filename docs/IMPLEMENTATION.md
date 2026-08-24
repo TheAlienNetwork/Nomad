@@ -42,6 +42,15 @@
 - Trail-camera entity + image-analysis interface shape in schema
 - Western state adapter stubs (CO, WY, MT, ID, UT)
 
+## Production hardening (added)
+
+- Email/password accounts with scrypt and HttpOnly sessions
+- Durable file store for users, sessions, and waypoints
+- Sync requires sign-in; offline marks are kept
+- Server forces waypoint visibility to private
+- Rate limits, security headers, health endpoint, privacy/terms
+- Docker image and production runbook
+
 ## Remaining work
 
 - Native React Native / Expo client
