@@ -123,46 +123,6 @@ function ensureOverlays(map: Map): void {
       },
     });
   }
-  if (!map.getSource("harvests")) {
-    map.addSource("harvests", { type: "geojson", data: harvestsToFc([]) as FeatureCollection });
-    map.addLayer({
-      id: "harvest-heat",
-      type: "heatmap",
-      source: "harvests",
-      paint: {
-        "heatmap-weight": 1,
-        "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 8, 0.55, 14, 1.35],
-        "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 8, 18, 14, 44],
-        "heatmap-opacity": 0.72,
-        "heatmap-color": [
-          "interpolate",
-          ["linear"],
-          ["heatmap-density"],
-          0,
-          "rgba(0,0,0,0)",
-          0.15,
-          "rgba(255, 80, 0, 0.28)",
-          0.4,
-          "rgba(239, 68, 68, 0.55)",
-          0.7,
-          "rgba(220, 38, 38, 0.82)",
-          1,
-          "rgba(254, 226, 168, 1)",
-        ],
-      },
-    });
-    map.addLayer({
-      id: "harvest-points",
-      type: "circle",
-      source: "harvests",
-      paint: {
-        "circle-radius": 7,
-        "circle-color": "#ef4444",
-        "circle-stroke-width": 2,
-        "circle-stroke-color": "#fff5f0",
-      },
-    });
-  }
   if (!map.getSource("tracks")) {
     map.addSource("tracks", { type: "geojson", data: tracksToFc([]) as FeatureCollection });
     map.addLayer({
@@ -230,6 +190,69 @@ function ensureOverlays(map: Map): void {
       },
     });
   }
+  ensureHarvestOverlay(map);
+}
+
+function ensureHarvestOverlay(map: Map): void {
+  if (!map.getSource("harvests")) {
+    map.addSource("harvests", { type: "geojson", data: harvestsToFc([]) as FeatureCollection });
+  }
+  if (!map.getLayer("harvest-heat")) {
+    map.addLayer({
+      id: "harvest-heat",
+      type: "heatmap",
+      source: "harvests",
+      paint: {
+        "heatmap-weight": 1,
+        "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 8, 0.7, 12, 1.2, 14, 1.6],
+        "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 8, 24, 12, 42, 14, 64],
+        "heatmap-opacity": 0.78,
+        "heatmap-color": [
+          "interpolate",
+          ["linear"],
+          ["heatmap-density"],
+          0,
+          "rgba(0,0,0,0)",
+          0.12,
+          "rgba(255, 80, 0, 0.32)",
+          0.35,
+          "rgba(239, 68, 68, 0.58)",
+          0.65,
+          "rgba(220, 38, 38, 0.86)",
+          1,
+          "rgba(254, 226, 168, 1)",
+        ],
+      },
+    });
+  }
+  if (!map.getLayer("harvest-glow")) {
+    map.addLayer({
+      id: "harvest-glow",
+      type: "circle",
+      source: "harvests",
+      paint: {
+        "circle-radius": 16,
+        "circle-color": "#ef4444",
+        "circle-opacity": 0.28,
+      },
+    });
+  }
+  if (!map.getLayer("harvest-points")) {
+    map.addLayer({
+      id: "harvest-points",
+      type: "circle",
+      source: "harvests",
+      paint: {
+        "circle-radius": 9,
+        "circle-color": "#ef4444",
+        "circle-stroke-width": 3,
+        "circle-stroke-color": "#fff7ed",
+      },
+    });
+  }
+  if (map.getLayer("harvest-heat")) map.moveLayer("harvest-heat");
+  if (map.getLayer("harvest-glow")) map.moveLayer("harvest-glow");
+  if (map.getLayer("harvest-points")) map.moveLayer("harvest-points");
 }
 
 function setSourceData(
@@ -258,6 +281,9 @@ function applyLayerVisibility(map: Map, layers: LayerState): void {
   }
   if (map.getLayer("harvest-points")) {
     map.setLayoutProperty("harvest-points", "visibility", visibility(layers.kills));
+  }
+  if (map.getLayer("harvest-glow")) {
+    map.setLayoutProperty("harvest-glow", "visibility", visibility(layers.kills));
   }
   if (map.getLayer("harvest-heat")) {
     map.setLayoutProperty("harvest-heat", "visibility", visibility(layers.killHeat));
@@ -345,8 +371,9 @@ export function MapView({ onIdentify, onIntel, habitat }: MapViewProps) {
       cancel();
       if (!lngLat || longPress || dragged) return;
       if (map.getLayer("harvest-points")) {
+        const killLayers = ["harvest-points", "harvest-glow"].filter((id) => map.getLayer(id));
         const hits = map.queryRenderedFeatures(map.project([lngLat.lng, lngLat.lat]), {
-          layers: ["harvest-points"],
+          layers: killLayers,
         });
         if (hits.length > 0) {
           openSheet("kill");

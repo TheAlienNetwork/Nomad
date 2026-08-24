@@ -548,14 +548,18 @@ export function KillSheet({
   const cells = harvestHeatmap(harvestLocations(waypoints));
   const hasGps = gps.latitude !== undefined && gps.longitude !== undefined;
   const hasMap = Boolean(mapBounds);
-  const locationLabel = hasGps ? "GPS fix" : hasMap ? "map center" : "no position yet";
-  const canDrop = hasGps || hasMap;
+  const locationLabel = hasGps
+    ? "GPS fix"
+    : hasMap
+      ? "map center"
+      : "default field center";
   return (
     <Sheet title="KILL MARKER">
       <div className="space-y-3 text-sm">
         <TruthBadge layer="observed" />
         <p>
-          Drop a private kill at your {locationLabel}. The heat map is only these marks — not a forecast.
+          Drop a private kill at your {locationLabel}. Red targets and the warm blob are your recorded
+          kills only — not a forecast.
         </p>
         <p className="font-mono text-[10px] tracking-[0.2em] text-field-mist/50">SPECIES</p>
         <div className="grid grid-cols-2 gap-2">
@@ -570,15 +574,9 @@ export function KillSheet({
             </button>
           ))}
         </div>
-        <button
-          type="button"
-          className="btn-kill w-full"
-          disabled={!canDrop}
-          onClick={() => onDrop(species)}
-        >
+        <button type="button" className="btn-kill w-full" onClick={() => onDrop(species)}>
           DROP KILL
         </button>
-        {!canDrop && <p className="text-field-amber">Need a GPS fix or a visible map to drop a mark.</p>}
         <p className="font-mono text-[10px] tracking-[0.2em] text-field-mist/50">
           {kills.length} RECORDED · {cells.length} HEAT {cells.length === 1 ? "CELL" : "CELLS"}
         </p>

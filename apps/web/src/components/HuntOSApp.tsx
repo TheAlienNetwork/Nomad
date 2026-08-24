@@ -32,6 +32,7 @@ import {
   saveTrack,
   saveWaypoint,
 } from "@/lib/offline";
+import { DEFAULT_FIELD_CENTER } from "@/lib/places";
 import { closeSheet, flyToBounds, openSheet, useHuntStore } from "@/lib/store";
 import {
   AccountSheet,
@@ -213,7 +214,7 @@ export function HuntOSApp() {
         longitude: (mapBounds.west + mapBounds.east) / 2,
       };
     }
-    return null;
+    return DEFAULT_FIELD_CENTER;
   };
 
   const createWaypoint = async (input: {

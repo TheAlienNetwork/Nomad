@@ -54,6 +54,8 @@ export const TEXAS_PUBLIC_LAND_PLACES: readonly PublicLandPlace[] = [
   },
 ];
 
+export const DEFAULT_FIELD_CENTER: LonLat = TEXAS_PUBLIC_LAND_PLACES[0]!.center;
+
 function normalizeQuery(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }

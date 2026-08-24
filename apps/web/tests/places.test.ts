@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { matchPublicLandPlace } from "../src/lib/places";
+import { DEFAULT_FIELD_CENTER, matchPublicLandPlace } from "../src/lib/places";
 
 describe("Texas public-land place search", () => {
   it("matches common misspellings of Davy Crockett NF", () => {
@@ -11,5 +11,9 @@ describe("Texas public-land place search", () => {
 
   it("still matches Sam Houston NF", () => {
     expect(matchPublicLandPlace("sam houston")?.id).toBe("tx-sam-houston-nf");
+  });
+
+  it("keeps a known default field center", () => {
+    expect(DEFAULT_FIELD_CENTER).toEqual({ latitude: 30.58, longitude: -95.47 });
   });
 });
