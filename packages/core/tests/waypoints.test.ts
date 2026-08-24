@@ -15,7 +15,7 @@ describe("waypoint catalog", () => {
 
   it("groups hunter observations separately from infrastructure", () => {
     expect(OBSERVATION_WAYPOINT_TYPES).toEqual(
-      expect.arrayContaining(["sighting", "scat"]),
+      expect.arrayContaining(["sighting", "scat", "harvest"]),
     );
   });
 });

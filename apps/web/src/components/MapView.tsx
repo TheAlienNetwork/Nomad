@@ -4,8 +4,9 @@ import { useEffect, useRef } from "react";
 import maplibregl, { type GeoJSONSource, type Map } from "maplibre-gl";
 import type { FeatureCollection } from "geojson";
 import type { Track, Waypoint } from "@huntos/core";
+import { harvestsToFc, mapMarkWaypoints } from "@/lib/harvest-map";
 import { createMapStyle, OPENFREEMAP_STYLE } from "@/lib/map-style";
-import { useHuntStore } from "@/lib/store";
+import { openSheet, useHuntStore, type LayerState } from "@/lib/store";
 
 export interface HabitatCollection {
   type: "FeatureCollection";
@@ -25,7 +26,7 @@ interface MapViewProps {
 function waypointsToFc(waypoints: Waypoint[]): HabitatCollection {
   return {
     type: "FeatureCollection",
-    features: waypoints.map((waypoint) => ({
+    features: mapMarkWaypoints(waypoints).map((waypoint) => ({
       type: "Feature",
       properties: {
         truthLayer: "observed",
@@ -122,6 +123,46 @@ function ensureOverlays(map: Map): void {
       },
     });
   }
+  if (!map.getSource("harvests")) {
+    map.addSource("harvests", { type: "geojson", data: harvestsToFc([]) as FeatureCollection });
+    map.addLayer({
+      id: "harvest-heat",
+      type: "heatmap",
+      source: "harvests",
+      paint: {
+        "heatmap-weight": 1,
+        "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 8, 0.55, 14, 1.35],
+        "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 8, 18, 14, 44],
+        "heatmap-opacity": 0.72,
+        "heatmap-color": [
+          "interpolate",
+          ["linear"],
+          ["heatmap-density"],
+          0,
+          "rgba(0,0,0,0)",
+          0.15,
+          "rgba(255, 80, 0, 0.28)",
+          0.4,
+          "rgba(239, 68, 68, 0.55)",
+          0.7,
+          "rgba(220, 38, 38, 0.82)",
+          1,
+          "rgba(254, 226, 168, 1)",
+        ],
+      },
+    });
+    map.addLayer({
+      id: "harvest-points",
+      type: "circle",
+      source: "harvests",
+      paint: {
+        "circle-radius": 7,
+        "circle-color": "#ef4444",
+        "circle-stroke-width": 2,
+        "circle-stroke-color": "#fff5f0",
+      },
+    });
+  }
   if (!map.getSource("tracks")) {
     map.addSource("tracks", { type: "geojson", data: tracksToFc([]) as FeatureCollection });
     map.addLayer({
@@ -194,10 +235,40 @@ function ensureOverlays(map: Map): void {
 function setSourceData(
   map: Map,
   id: string,
-  data: HabitatCollection,
+  data: HabitatCollection | ReturnType<typeof harvestsToFc>,
 ): void {
   const source = map.getSource(id) as GeoJSONSource | undefined;
   source?.setData(data as FeatureCollection);
+}
+
+function applyLayerVisibility(map: Map, layers: LayerState): void {
+  const visibility = (visible: boolean) => (visible ? "visible" : "none");
+  if (map.getLayer("padus")) {
+    map.setLayoutProperty("padus", "visibility", visibility(layers.publicLand));
+  }
+  if (map.getLayer("hillshade")) {
+    map.setLayoutProperty("hillshade", "visibility", visibility(layers.hillshade));
+  }
+  if (map.getLayer("waypoints")) {
+    map.setLayoutProperty("waypoints", "visibility", visibility(layers.waypoints));
+    map.setLayoutProperty("waypoints-glow", "visibility", visibility(layers.waypoints));
+  }
+  if (map.getLayer("tracks")) {
+    map.setLayoutProperty("tracks", "visibility", visibility(layers.tracks));
+  }
+  if (map.getLayer("harvest-points")) {
+    map.setLayoutProperty("harvest-points", "visibility", visibility(layers.kills));
+  }
+  if (map.getLayer("harvest-heat")) {
+    map.setLayoutProperty("harvest-heat", "visibility", visibility(layers.killHeat));
+  }
+  if (map.getLayer("habitat")) {
+    map.setLayoutProperty(
+      "habitat",
+      "visibility",
+      visibility(layers.huntScore || layers.bedding || layers.feeding),
+    );
+  }
 }
 
 export function MapView({ onIdentify, onIntel, habitat }: MapViewProps) {
@@ -226,6 +297,11 @@ export function MapView({ onIdentify, onIntel, habitat }: MapViewProps) {
     map.addControl(new maplibregl.NavigationControl({ showCompass: true }), "top-right");
     map.on("load", () => {
       ensureOverlays(map);
+      const state = useHuntStore.getState();
+      setSourceData(map, "waypoints", waypointsToFc(state.waypoints));
+      setSourceData(map, "harvests", harvestsToFc(state.waypoints));
+      setSourceData(map, "tracks", tracksToFc(state.tracks));
+      applyLayerVisibility(map, state.layers);
       useHuntStore.setState({
         mapBounds: {
           west: map.getBounds().getWest(),
@@ -268,6 +344,15 @@ export function MapView({ onIdentify, onIntel, habitat }: MapViewProps) {
     const finishPress = (lngLat?: { lng: number; lat: number }) => {
       cancel();
       if (!lngLat || longPress || dragged) return;
+      if (map.getLayer("harvest-points")) {
+        const hits = map.queryRenderedFeatures(map.project([lngLat.lng, lngLat.lat]), {
+          layers: ["harvest-points"],
+        });
+        if (hits.length > 0) {
+          openSheet("kill");
+          return;
+        }
+      }
       handlers.current.onIdentify(lngLat.lng, lngLat.lat);
     };
     map.on("mouseup", (event) => finishPress(event.lngLat));
@@ -305,7 +390,14 @@ export function MapView({ onIdentify, onIntel, habitat }: MapViewProps) {
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    const apply = () => ensureOverlays(map);
+    const apply = () => {
+      ensureOverlays(map);
+      const state = useHuntStore.getState();
+      setSourceData(map, "waypoints", waypointsToFc(state.waypoints));
+      setSourceData(map, "harvests", harvestsToFc(state.waypoints));
+      setSourceData(map, "tracks", tracksToFc(state.tracks));
+      applyLayerVisibility(map, state.layers);
+    };
     if (basemap === "streets") {
       map.setStyle(OPENFREEMAP_STYLE);
       map.once("style.load", apply);
@@ -318,33 +410,14 @@ export function MapView({ onIdentify, onIntel, habitat }: MapViewProps) {
   useEffect(() => {
     const map = mapRef.current;
     if (!map?.isStyleLoaded()) return;
-    const visibility = (visible: boolean) => (visible ? "visible" : "none");
-    if (map.getLayer("padus")) {
-      map.setLayoutProperty("padus", "visibility", visibility(layers.publicLand));
-    }
-    if (map.getLayer("hillshade")) {
-      map.setLayoutProperty("hillshade", "visibility", visibility(layers.hillshade));
-    }
-    if (map.getLayer("waypoints")) {
-      map.setLayoutProperty("waypoints", "visibility", visibility(layers.waypoints));
-      map.setLayoutProperty("waypoints-glow", "visibility", visibility(layers.waypoints));
-    }
-    if (map.getLayer("tracks")) {
-      map.setLayoutProperty("tracks", "visibility", visibility(layers.tracks));
-    }
-    if (map.getLayer("habitat")) {
-      map.setLayoutProperty(
-        "habitat",
-        "visibility",
-        visibility(layers.huntScore || layers.bedding || layers.feeding),
-      );
-    }
+    applyLayerVisibility(map, layers);
   }, [layers]);
 
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
     setSourceData(map, "waypoints", waypointsToFc(waypoints));
+    setSourceData(map, "harvests", harvestsToFc(waypoints));
     setSourceData(map, "tracks", tracksToFc(tracks));
   }, [waypoints, tracks]);
 

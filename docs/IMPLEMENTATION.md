@@ -36,6 +36,7 @@
 - Wind evaluation + what-if helper in core
 - Hunt/track session recording
 - Personal observation analytics helpers (not yet a full journal UI)
+- One-tap kill marker + observed-only kill heat map from recorded harvests
 
 ## Phase 6–7
 

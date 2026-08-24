@@ -30,6 +30,10 @@ body {
   @apply font-mono text-[10px] tracking-[0.16em] text-field-mist/70;
 }
 
+.btn-kill {
+  @apply min-h-12 rounded-2xl bg-field-danger px-4 font-mono text-xs tracking-[0.18em] text-white;
+}
+
 .input {
   @apply w-full rounded-xl border border-field-line bg-black/30 px-3 py-2 text-field-mist outline-none;
 }
@@ -42,7 +46,8 @@ body {
 }
 
 .field-mode .btn-dock,
-.field-mode .btn-primary {
+.field-mode .btn-primary,
+.field-mode .btn-kill {
   min-height: 4.25rem;
 }
 

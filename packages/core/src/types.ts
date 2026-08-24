@@ -180,3 +180,10 @@ export const SPECIES: readonly SpeciesId[] = [
   "elk",
   "turkey",
 ] as const;
+
+export const SPECIES_LABELS: Record<SpeciesId, string> = {
+  whitetail: "Whitetail",
+  mule_deer: "Mule deer",
+  elk: "Elk",
+  turkey: "Turkey",
+};

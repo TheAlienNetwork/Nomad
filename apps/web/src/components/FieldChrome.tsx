@@ -6,10 +6,14 @@ import {
   BOUNDARY_CONFIDENCE_WARNING,
   OBSERVATION_WAYPOINT_TYPES,
   SPECIES,
+  SPECIES_LABELS,
   WAYPOINT_TYPES,
   WAYPOINT_TYPE_LABELS,
   formatBearing,
   formatDistance,
+  harvestHeatmap,
+  harvestLocations,
+  recordedKills,
   haversineMeters,
   initialBearingDegrees,
   type IdentifyResult,
@@ -134,10 +138,12 @@ export function Dock({
   onLocate,
   onWaypoint,
   onReturn,
+  onKill,
 }: {
   onLocate: () => void;
   onWaypoint: () => void;
   onReturn: () => void;
+  onKill: () => void;
 }) {
   const fieldMode = useHuntStore((state) => state.fieldMode);
   const buttons = [
@@ -153,9 +159,14 @@ export function Dock({
   ] as const;
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex flex-col items-center gap-2 p-3">
-      <button type="button" className="btn-primary pointer-events-auto w-full max-w-md" onClick={onReturn}>
-        RETURN TO TRUCK
-      </button>
+      <div className="pointer-events-auto grid w-full max-w-md grid-cols-2 gap-2">
+        <button type="button" className="btn-kill" onClick={onKill}>
+          KILL
+        </button>
+        <button type="button" className="btn-primary" onClick={onReturn}>
+          RETURN TO TRUCK
+        </button>
+      </div>
       <nav className="pointer-events-auto grid w-full max-w-md grid-cols-5 gap-2">
         {buttons.map((button) => (
           <button key={button.id} type="button" className="btn-dock" onClick={button.action}>
@@ -215,6 +226,14 @@ export function LayersPanel() {
           <p className="mb-2 font-mono text-[10px] tracking-[0.2em] text-field-mist/50">MY DATA</p>
           <Toggle checked={layers.waypoints} onChange={() => toggle("waypoints")} label="Waypoints" />
           <Toggle checked={layers.tracks} onChange={() => toggle("tracks")} label="Tracks" />
+        </div>
+        <div>
+          <p className="mb-2 font-mono text-[10px] tracking-[0.2em] text-field-mist/50">KILLS · OBSERVED</p>
+          <p className="mb-1 text-xs text-field-observe">
+            Your recorded kills only. This is history, not a prediction that animals will be there.
+          </p>
+          <Toggle checked={layers.kills} onChange={() => toggle("kills")} label="Kill markers" />
+          <Toggle checked={layers.killHeat} onChange={() => toggle("killHeat")} label="Kill heat map" />
         </div>
       </section>
     </Sheet>
@@ -371,7 +390,7 @@ export function WaypointSheet({
             <option value="">Unknown / not specified</option>
             {SPECIES.map((species) => (
               <option key={species} value={species}>
-                {species.replace("_", " ")}
+                {SPECIES_LABELS[species]}
               </option>
             ))}
           </select>
@@ -424,7 +443,7 @@ export function ScoutSheet({
       <div className="space-y-3 text-sm">
         <p className="font-mono text-[10px] tracking-[0.2em] text-field-mist/50">WHAT ARE YOU HUNTING?</p>
         <div className="grid grid-cols-2 gap-2">
-          {(["whitetail", "mule_deer", "elk", "turkey"] as const).map((species) => (
+          {SPECIES.map((species) => (
             <button
               key={species}
               type="button"
@@ -435,7 +454,7 @@ export function ScoutSheet({
                 })
               }
             >
-              {species.replace("_", " ")}
+              {SPECIES_LABELS[species]}
             </button>
           ))}
         </div>
@@ -509,6 +528,94 @@ export function DownloadSheet({
         <button type="button" className="btn-primary w-full" onClick={onDownload}>
           DOWNLOAD VISIBLE AREA
         </button>
+      </div>
+    </Sheet>
+  );
+}
+
+export function KillSheet({
+  onDrop,
+}: {
+  onDrop: (species: SpeciesId) => void;
+}) {
+  const sheet = useHuntStore((state) => state.sheet);
+  const species = useHuntStore((state) => state.draftKillSpecies);
+  const waypoints = useHuntStore((state) => state.waypoints);
+  const gps = useHuntStore((state) => state.gps);
+  const mapBounds = useHuntStore((state) => state.mapBounds);
+  if (sheet !== "kill") return null;
+  const kills = recordedKills(waypoints);
+  const cells = harvestHeatmap(harvestLocations(waypoints));
+  const hasGps = gps.latitude !== undefined && gps.longitude !== undefined;
+  const hasMap = Boolean(mapBounds);
+  const locationLabel = hasGps ? "GPS fix" : hasMap ? "map center" : "no position yet";
+  const canDrop = hasGps || hasMap;
+  return (
+    <Sheet title="KILL MARKER">
+      <div className="space-y-3 text-sm">
+        <TruthBadge layer="observed" />
+        <p>
+          Drop a private kill at your {locationLabel}. The heat map is only these marks — not a forecast.
+        </p>
+        <p className="font-mono text-[10px] tracking-[0.2em] text-field-mist/50">SPECIES</p>
+        <div className="grid grid-cols-2 gap-2">
+          {SPECIES.map((id) => (
+            <button
+              key={id}
+              type="button"
+              className={species === id ? "btn-kill" : "btn-dock"}
+              onClick={() => useHuntStore.setState({ draftKillSpecies: id })}
+            >
+              {SPECIES_LABELS[id]}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          className="btn-kill w-full"
+          disabled={!canDrop}
+          onClick={() => onDrop(species)}
+        >
+          DROP KILL
+        </button>
+        {!canDrop && <p className="text-field-amber">Need a GPS fix or a visible map to drop a mark.</p>}
+        <p className="font-mono text-[10px] tracking-[0.2em] text-field-mist/50">
+          {kills.length} RECORDED · {cells.length} HEAT {cells.length === 1 ? "CELL" : "CELLS"}
+        </p>
+        {kills.length === 0 ? (
+          <p className="text-field-mist/70">No kills marked yet. Future drops will stack on the heat map.</p>
+        ) : (
+          <ul className="space-y-2">
+            {kills.map((kill) => (
+              <li key={kill.id}>
+                <button
+                  type="button"
+                  className="w-full rounded-xl border border-field-line px-3 py-2 text-left"
+                  onClick={() =>
+                    flyToBounds(
+                      kill.id,
+                      {
+                        west: kill.longitude - 0.01,
+                        south: kill.latitude - 0.01,
+                        east: kill.longitude + 0.01,
+                        north: kill.latitude + 0.01,
+                      },
+                      { latitude: kill.latitude, longitude: kill.longitude },
+                    )
+                  }
+                >
+                  <p className="font-mono text-xs text-field-danger">
+                    {kill.species ? SPECIES_LABELS[kill.species] : "Kill"}
+                  </p>
+                  <p className="text-xs text-field-mist/70">
+                    {new Date(kill.observedAt ?? kill.createdAt).toLocaleString()} ·{" "}
+                    {kill.latitude.toFixed(4)}, {kill.longitude.toFixed(4)}
+                  </p>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </Sheet>
   );

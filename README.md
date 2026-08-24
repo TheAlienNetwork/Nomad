@@ -45,7 +45,7 @@ React Native / Expo is the intended mobile shell. Core intelligence is not coupl
 ## Truth layers
 
 1. **Authoritative** — government/verified GIS, elevation samples, official access codes
-2. **Observed** — the hunter's waypoints, tracks, cameras, harvests
+2. **Observed** — the hunter's waypoints, tracks, cameras, harvests, and kill heat map
 3. **Inferred** — habitat scores, wind class, AI narrative, movement guesses
 
 If a source is missing, HUNT//OS reports unknown. It does not invent property lines, public/private status, seasons, bag limits, or legal access.

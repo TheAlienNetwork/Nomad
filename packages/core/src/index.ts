@@ -14,3 +14,4 @@ export * from "./observations";
 export * from "./privacy";
 export * from "./entities";
 export * from "./landcover";
+export * from "./harvest";

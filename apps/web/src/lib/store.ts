@@ -23,7 +23,8 @@ export type SheetId =
   | "assistant"
   | "gps"
   | "return"
-  | "account";
+  | "account"
+  | "kill";
 
 export interface LayerState {
   publicLand: boolean;
@@ -41,6 +42,8 @@ export interface LayerState {
   cameras: boolean;
   tracks: boolean;
   observations: boolean;
+  kills: boolean;
+  killHeat: boolean;
 }
 
 export interface ScoutDraft {
@@ -77,6 +80,7 @@ export interface AppState {
   identify?: IdentifyResult;
   intelPoint?: { lng: number; lat: number };
   draftWaypointType: WaypointType;
+  draftKillSpecies: SpeciesId;
   waypoints: Waypoint[];
   tracks: Track[];
   huntAreas: HuntArea[];
@@ -111,6 +115,8 @@ export const defaultLayers = (): LayerState => ({
   cameras: true,
   tracks: true,
   observations: true,
+  kills: true,
+  killHeat: true,
 });
 
 export const useHuntStore = create<AppState>(() => ({
@@ -123,6 +129,7 @@ export const useHuntStore = create<AppState>(() => ({
   sheet: "none",
   gps: { source: "none" },
   draftWaypointType: "custom",
+  draftKillSpecies: "whitetail",
   waypoints: [],
   tracks: [],
   huntAreas: [],

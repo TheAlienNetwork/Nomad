@@ -40,6 +40,7 @@ import {
   DownloadSheet,
   FieldExtras,
   GpsSheet,
+  KillSheet,
   LayersPanel,
   PropertySheet,
   ReturnSheet,
@@ -255,10 +256,15 @@ export function HuntOSApp() {
       now,
     ).payload;
     await saveWaypoint({ ...queued, syncStatus: "pending" });
+    const current = useHuntStore.getState();
     useHuntStore.setState({
       waypoints: [...waypoints, { ...queued, syncStatus: "pending" }],
-      truckWaypointId:
-        input.type === "truck" ? queued.id : useHuntStore.getState().truckWaypointId,
+      truckWaypointId: input.type === "truck" ? queued.id : current.truckWaypointId,
+      draftKillSpecies: input.species ?? current.draftKillSpecies,
+      layers:
+        input.type === "harvest"
+          ? { ...current.layers, kills: true, killHeat: true }
+          : current.layers,
     });
     flyToBounds(
       queued.id,
@@ -457,10 +463,21 @@ export function HuntOSApp() {
         }}
         onWaypoint={() => openSheet("waypoint")}
         onReturn={() => openSheet("return")}
+        onKill={() => openSheet("kill")}
       />
       <LayersPanel />
       <PropertySheet result={identify} coordinate={intelPoint} />
       <WaypointSheet onSave={(input) => void createWaypoint(input)} />
+      <KillSheet
+        onDrop={(species) =>
+          void createWaypoint({
+            type: "harvest",
+            name: "Kill",
+            notes: "",
+            species,
+          })
+        }
+      />
       <ScoutSheet onAnalyze={() => void analyzeScout()} />
       <DownloadSheet onDownload={() => void downloadArea()} />
       <ReturnSheet truck={truck} />
