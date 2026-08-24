@@ -231,6 +231,15 @@ export function PropertySheet({
       {!result?.found ? (
         <div className="mt-3 space-y-2 text-sm">
           <p>{result?.message ?? "No identify result yet."}</p>
+          {result?.features[0] && (
+            <div className="rounded-xl border border-field-line p-3">
+              <p className="text-xs text-field-mist/60">Nearby record (not a containment match)</p>
+              <p className="text-lg">{result.features[0].properties.name ?? "Unnamed unit"}</p>
+              <p>Managing Agency: {result.features[0].properties.manager ?? "Unknown"}</p>
+              <p>Dataset: {result.features[0].provenance.name}</p>
+              <p>Retrieved: {result.features[0].provenance.retrievedAt}</p>
+            </div>
+          )}
           <p className="text-field-amber">{BOUNDARY_CONFIDENCE_WARNING}</p>
         </div>
       ) : (

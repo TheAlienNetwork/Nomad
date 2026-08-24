@@ -6,7 +6,7 @@
 export const TEXAS_STATE_MODULE = {
   code: "TX",
   name: "Texas",
-  defaultCenter: { latitude: 30.52, longitude: -95.28 },
+  defaultCenter: { latitude: 30.58, longitude: -95.47 },
   defaultZoom: 10,
   defaultExtent: {
     west: -106.65,

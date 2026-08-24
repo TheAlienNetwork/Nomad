@@ -26,6 +26,6 @@ export const PADUS_FEE = {
 } as const;
 
 export const TEXAS_DEFAULT_CENTER = {
-  latitude: 30.52,
-  longitude: -95.28,
+  latitude: 30.58,
+  longitude: -95.47,
 } as const;

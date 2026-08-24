@@ -206,8 +206,8 @@ export function MapView({ onIdentify, onIntel, habitat }: MapViewProps) {
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: createMapStyle("topo"),
-      center: [-95.28, 30.52],
-      zoom: 10,
+      center: [-95.47, 30.58],
+      zoom: 12,
       attributionControl: { compact: true },
       maxPitch: 0,
     });
@@ -237,8 +237,10 @@ export function MapView({ onIdentify, onIntel, habitat }: MapViewProps) {
     });
     let press: ReturnType<typeof setTimeout> | undefined;
     let longPress = false;
+    let dragged = false;
     const startPress = (lngLat: { lng: number; lat: number }) => {
       longPress = false;
+      dragged = false;
       press = setTimeout(() => {
         longPress = true;
         handlers.current.onIntel(lngLat.lng, lngLat.lat);
@@ -252,17 +254,17 @@ export function MapView({ onIdentify, onIntel, habitat }: MapViewProps) {
     const cancel = () => {
       if (press) clearTimeout(press);
     };
-    map.on("mouseup", (event) => {
+    const finishPress = (lngLat?: { lng: number; lat: number }) => {
       cancel();
-      if (!longPress) handlers.current.onIdentify(event.lngLat.lng, event.lngLat.lat);
-    });
-    map.on("touchend", (event) => {
+      if (!lngLat || longPress || dragged) return;
+      handlers.current.onIdentify(lngLat.lng, lngLat.lat);
+    };
+    map.on("mouseup", (event) => finishPress(event.lngLat));
+    map.on("touchend", (event) => finishPress(event.lngLat));
+    map.on("dragstart", () => {
+      dragged = true;
       cancel();
-      if (!longPress && event.lngLat) {
-        handlers.current.onIdentify(event.lngLat.lng, event.lngLat.lat);
-      }
     });
-    map.on("dragstart", cancel);
     return () => {
       map.remove();
       mapRef.current = null;

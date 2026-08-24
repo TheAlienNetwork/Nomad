@@ -244,7 +244,7 @@ export async function queryArcgisGeoJson(
   const controller = new AbortController();
   const timer = setTimeout(
     () => controller.abort(),
-    options.timeoutMs ?? 20_000,
+    options.timeoutMs ?? 35_000,
   );
   try {
     const response = await fetchImpl(url, { signal: controller.signal });
@@ -312,12 +312,19 @@ export function createArcgisProvider(record: DatasetRecord): GISProvider {
         );
       }
       try {
+        const pad = 0.008;
         const raw = await queryArcgisGeoJson({
           sourceUrl: record.sourceUrl,
           layerIdentifier: record.layerIdentifier,
-          point,
+          bounds: {
+            west: point.longitude - pad,
+            south: point.latitude - pad,
+            east: point.longitude + pad,
+            north: point.latitude + pad,
+          },
           returnGeometry: true,
-          resultRecordCount: 10,
+          resultRecordCount: 15,
+          timeoutMs: 35_000,
         });
         const provenance = provenanceFromRecord(
           record,
@@ -329,7 +336,24 @@ export function createArcgisProvider(record: DatasetRecord): GISProvider {
             normalizePadusFeature(feature, provenance),
           ),
         };
-        return identifyFromCollection(normalized, point, provenance);
+        const exact = identifyFromCollection(normalized, point, provenance);
+        if (exact.found || normalized.features.length === 0) return exact;
+        return {
+          truthLayer: "authoritative",
+          found: false,
+          status: "unknown",
+          features: normalized.features.map((feature) => ({
+            properties:
+              feature.properties as unknown as NormalizedPublicLandProperties,
+            provenance:
+              (feature.properties?.provenance as Provenance | undefined) ??
+              provenance,
+            geometry: feature.geometry,
+          })),
+          message:
+            "No authoritative polygon contains this exact point. Nearby PAD-US records are listed for context only and do not establish access.",
+          warnings: [BOUNDARY_CONFIDENCE_WARNING],
+        };
       } catch (error) {
         return unavailableIdentify(
           error instanceof Error

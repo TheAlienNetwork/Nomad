@@ -104,7 +104,7 @@ export function HuntOSApp() {
     const point =
       gps.latitude !== undefined && gps.longitude !== undefined
         ? { latitude: gps.latitude, longitude: gps.longitude }
-        : { latitude: 30.52, longitude: -95.28 };
+        : { latitude: 30.58, longitude: -95.47 };
     void fetchWeather(point.latitude, point.longitude)
       .then((snapshot) => useHuntStore.setState({ weather: snapshot }))
       .catch(() => undefined);
@@ -138,10 +138,20 @@ export function HuntOSApp() {
 
   const runIdentify = useCallback(async (lng: number, lat: number) => {
     setIntelPoint({ lng, lat });
+    openSheet("property");
+    useHuntStore.setState({
+      identify: {
+        truthLayer: "authoritative",
+        found: false,
+        status: "unknown",
+        features: [],
+        message: "Querying PAD-US…",
+        warnings: [],
+      },
+    });
     try {
       const result = await identifyLand(lng, lat);
       useHuntStore.setState({ identify: result });
-      openSheet("property");
     } catch (error) {
       const result: IdentifyResult = {
         truthLayer: "authoritative",
