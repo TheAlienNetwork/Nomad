@@ -275,6 +275,14 @@ export function MapView({ onIdentify, onIntel, habitat }: MapViewProps) {
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapTarget) return;
+    if (mapTarget.center) {
+      map.flyTo({
+        center: [mapTarget.center.longitude, mapTarget.center.latitude],
+        zoom: 12,
+        duration: 1400,
+      });
+      return;
+    }
     map.fitBounds(
       [
         [mapTarget.bounds.west, mapTarget.bounds.south],

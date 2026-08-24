@@ -74,7 +74,7 @@ export function TopBar() {
             const query = String(new FormData(event.currentTarget).get("q") || "");
             const place = matchPublicLandPlace(query);
             if (place) {
-              flyToBounds(place.id, place.bounds);
+              flyToBounds(place.id, place.bounds, place.center);
               closeSheet();
             }
           }}
@@ -503,7 +503,7 @@ export function AreasSheet({
               type="button"
               className="w-full rounded border border-field-line p-3 text-left"
               onClick={() => {
-                flyToBounds(place.id, place.bounds);
+                flyToBounds(place.id, place.bounds, place.center);
                 closeSheet();
               }}
             >

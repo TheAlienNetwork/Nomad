@@ -84,6 +84,7 @@ export interface AppState {
     requestId: string;
     placeId: string;
     bounds: BoundingBox;
+    center?: { latitude: number; longitude: number };
   };
 }
 
@@ -133,12 +134,17 @@ export function closeSheet(): void {
   useHuntStore.setState({ sheet: "none" });
 }
 
-export function flyToBounds(placeId: string, bounds: BoundingBox): void {
+export function flyToBounds(
+  placeId: string,
+  bounds: BoundingBox,
+  center?: { latitude: number; longitude: number },
+): void {
   useHuntStore.setState({
     mapTarget: {
       requestId: crypto.randomUUID(),
       placeId,
       bounds,
+      center,
     },
   });
 }
