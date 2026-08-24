@@ -204,6 +204,14 @@ export function LayersPanel() {
           ))}
         </div>
         <div>
+          <p className="mb-2 font-mono text-[10px] tracking-[0.2em] text-field-mist/50">KILLS · OBSERVED</p>
+          <p className="mb-1 text-xs text-field-observe">
+            Your recorded kills only. This is history, not a prediction that animals will be there.
+          </p>
+          <Toggle checked={layers.kills} onChange={() => toggle("kills")} label="Kill markers" />
+          <Toggle checked={layers.killHeat} onChange={() => toggle("killHeat")} label="Kill heat map" />
+        </div>
+        <div>
           <p className="mb-2 font-mono text-[10px] tracking-[0.2em] text-field-mist/50">LAND</p>
           <Toggle checked={layers.publicLand} onChange={() => toggle("publicLand")} label="Public Land (PAD-US)" />
         </div>
@@ -226,14 +234,6 @@ export function LayersPanel() {
           <p className="mb-2 font-mono text-[10px] tracking-[0.2em] text-field-mist/50">MY DATA</p>
           <Toggle checked={layers.waypoints} onChange={() => toggle("waypoints")} label="Waypoints" />
           <Toggle checked={layers.tracks} onChange={() => toggle("tracks")} label="Tracks" />
-        </div>
-        <div>
-          <p className="mb-2 font-mono text-[10px] tracking-[0.2em] text-field-mist/50">KILLS · OBSERVED</p>
-          <p className="mb-1 text-xs text-field-observe">
-            Your recorded kills only. This is history, not a prediction that animals will be there.
-          </p>
-          <Toggle checked={layers.kills} onChange={() => toggle("kills")} label="Kill markers" />
-          <Toggle checked={layers.killHeat} onChange={() => toggle("killHeat")} label="Kill heat map" />
         </div>
       </section>
     </Sheet>
@@ -543,6 +543,7 @@ export function KillSheet({
   const waypoints = useHuntStore((state) => state.waypoints);
   const gps = useHuntStore((state) => state.gps);
   const mapBounds = useHuntStore((state) => state.mapBounds);
+  const layers = useHuntStore((state) => state.layers);
   if (sheet !== "kill") return null;
   const kills = recordedKills(waypoints);
   const cells = harvestHeatmap(harvestLocations(waypoints));
@@ -577,6 +578,28 @@ export function KillSheet({
         <button type="button" className="btn-kill w-full" onClick={() => onDrop(species)}>
           DROP KILL
         </button>
+        <div className="flex flex-wrap gap-3 text-xs">
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={layers.kills}
+              onChange={() =>
+                useHuntStore.setState({ layers: { ...layers, kills: !layers.kills } })
+              }
+            />
+            Show markers
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={layers.killHeat}
+              onChange={() =>
+                useHuntStore.setState({ layers: { ...layers, killHeat: !layers.killHeat } })
+              }
+            />
+            Show heat map
+          </label>
+        </div>
         <p className="font-mono text-[10px] tracking-[0.2em] text-field-mist/50">
           {kills.length} RECORDED · {cells.length} HEAT {cells.length === 1 ? "CELL" : "CELLS"}
         </p>
