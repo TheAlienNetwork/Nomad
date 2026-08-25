@@ -10,6 +10,11 @@ coverage
 .env.*.local
 apps/web/.next
 apps/web/out
+apps/mobile/.expo
+apps/mobile/dist
+apps/mobile/web-build
+.expo
+expo-env.d.ts
 packages/core/dist
 .vercel
 *.tsbuildinfo

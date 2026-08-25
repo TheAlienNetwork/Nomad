@@ -57,9 +57,12 @@ npm install
 npm test
 npm run typecheck
 npm run dev
+npm run dcdev
 ```
 
 Open `http://localhost:3000` for the map and `/admin` for dataset health.
+
+The Expo shell lives in `apps/mobile` (`@huntos/mobile`). `npm run dcdev` starts it on Android and web with satellite, USGS topo, and PAD-US public-land layers.
 
 ### Credentials
 

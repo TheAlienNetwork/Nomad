@@ -9,6 +9,8 @@
   ],
   "scripts": {
     "dev": "npm run dev -w @huntos/web",
+    "dcdev": "npm run dcdev -w @huntos/mobile",
+    "mobile": "npm run dcdev -w @huntos/mobile",
     "build": "npm run build -w @huntos/core && npm run build -w @huntos/web",
     "lint": "npm run lint -w @huntos/web",
     "typecheck": "npm run typecheck -w @huntos/core && npm run typecheck -w @huntos/web",
