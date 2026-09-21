@@ -1,0 +1,50 @@
+export const USGS_BASEMAPS = {
+  topo: {
+    datasetId: "usgs-topo",
+    tileUrl:
+      "https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}",
+  },
+  imagery: {
+    datasetId: "usgs-imagery",
+    tileUrl:
+      "https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}",
+  },
+  hillshade: {
+    datasetId: "usgs-hillshade",
+    tileUrl:
+      "https://basemap.nationalmap.gov/arcgis/rest/services/USGSShadedReliefOnly/MapServer/tile/{z}/{y}/{x}",
+  },
+} as const;
+
+export const TERRARIUM_DEM = {
+  datasetId: "terrarium",
+  tileUrl: "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png",
+  attribution: "Mapzen / Amazon Terrain Tiles",
+} as const;
+
+export const PADUS_FEE = {
+  datasetId: "padus-4-1-fee",
+  mapServer:
+    "https://edits.nationalmap.gov/arcgis/rest/services/PAD-US/PAD_US_4_1/MapServer",
+  featureLayer:
+    "https://edits.nationalmap.gov/arcgis/rest/services/PAD-US/PAD_US_4_1/MapServer/0",
+  layerIdentifier: "0",
+} as const;
+
+export const TPWD_PUBLIC_HUNT = {
+  datasetId: "tx-public-hunt-areas",
+  mapServer:
+    "https://tpwd.texas.gov/server/rest/services/Wildlife/TPWD_PublicHuntLocatorMap/MapServer",
+  layerIdentifier: "7,8,9",
+} as const;
+
+export const TPWD_HUNTING_UNITS = {
+  datasetId: "tx-hunting-units",
+  mapServer: "https://tpwd.texas.gov/server/rest/services/Wildlife/TPWD_WL_WTDMU/MapServer",
+  layerIdentifier: "0",
+} as const;
+
+export const TEXAS_DEFAULT_CENTER = {
+  latitude: 30.58,
+  longitude: -95.47,
+} as const;

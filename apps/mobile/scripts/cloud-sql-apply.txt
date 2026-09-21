@@ -1,0 +1,19 @@
+Nomad Supabase SQL (project vqdvfxfzhsbhmfumvncy)
+Dashboard: https://supabase.com/dashboard/project/vqdvfxfzhsbhmfumvncy/sql
+
+Checked Aug 2026: nomad_gear, nomad_journal_notes, nomad_waypoints,
+nomad_hunts, nomad_tracks, nomad_scout_areas, and nomad_user_prefs
+respond on REST (002 + 003 + 004 + 005 are applied).
+
+If a later clone is empty, paste these in the SQL editor, in order:
+
+1. packages/db/migrations/002_nomad_user_content.sql
+2. packages/db/migrations/003_field_marks.sql
+3. packages/db/migrations/004_journal_prefs.sql
+4. packages/db/migrations/005_hunt_areas_cameras.sql
+
+Dashboard: https://supabase.com/dashboard/project/vqdvfxfzhsbhmfumvncy/sql
+
+Policies must stay user_id = auth.uid() only.
+Keep email confirmations ON for testers.
+Never put the service role key in the app.
