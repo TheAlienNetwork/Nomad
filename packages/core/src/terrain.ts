@@ -25,6 +25,8 @@ export interface TerrainGrid {
   uncertainty: Uncertainty;
 }
 
+export const DEFAULT_TERRAIN_MAX_CELLS = 81;
+
 export interface ElevationProvider {
   sample(points: LonLat[]): Promise<ElevationSample[]>;
 }
@@ -35,7 +37,7 @@ export function cellId(point: LonLat, precision = 4): string {
 
 export function buildSampleGrid(
   bounds: BoundingBox,
-  maxCells = 36,
+  maxCells = DEFAULT_TERRAIN_MAX_CELLS,
 ): { points: LonLat[]; rows: number; cols: number; cellSizeMeters: number } {
   const width = haversineMeters(
     { longitude: bounds.west, latitude: (bounds.south + bounds.north) / 2 },
@@ -45,8 +47,8 @@ export function buildSampleGrid(
     { longitude: bounds.west, latitude: bounds.south },
     { longitude: bounds.west, latitude: bounds.north },
   );
-  const cols = Math.max(3, Math.min(8, Math.round(Math.sqrt(maxCells))));
-  const rows = Math.max(3, Math.min(8, Math.round(maxCells / cols)));
+  const cols = Math.max(3, Math.min(10, Math.round(Math.sqrt(maxCells))));
+  const rows = Math.max(3, Math.min(10, Math.round(maxCells / cols)));
   const points: LonLat[] = [];
   for (let r = 0; r < rows; r += 1) {
     for (let c = 0; c < cols; c += 1) {
@@ -182,7 +184,7 @@ export function deriveTerrainGrid(
 export async function analyzeTerrain(
   bounds: BoundingBox,
   provider: ElevationProvider,
-  maxCells = 36,
+  maxCells = DEFAULT_TERRAIN_MAX_CELLS,
 ): Promise<TerrainGrid> {
   const grid = buildSampleGrid(bounds, maxCells);
   const samples = await provider.sample(grid.points);

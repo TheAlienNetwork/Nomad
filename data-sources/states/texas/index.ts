@@ -28,7 +28,17 @@ export const TEXAS_STATE_MODULE = {
     huntingUnits: {
       datasetId: "tx-hunting-units",
       envUrlKey: "TPWD_HUNTING_UNITS_URL",
-      status: "unconfigured",
+      status: "unknown",
+    },
+    publicHuntAreas: {
+      datasetId: "tx-public-hunt-areas",
+      envUrlKey: "TPWD_PUBLIC_HUNT_URL",
+      status: "unknown",
+    },
+    stratmapParcels: {
+      datasetId: "tx-stratmap-parcels",
+      envUrlKey: null,
+      status: "unknown",
     },
     regulations: {
       datasetId: "tx-regulations",

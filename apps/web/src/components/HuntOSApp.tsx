@@ -3,11 +3,17 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   estimateRasterTileCount,
+  listRasterTiles,
   markPending,
+  overlayDefinition,
+  packExtentForState,
+  sanitizePackSelection,
+  defaultPackSelection,
   outgoingQueue,
   pathLengthMeters,
   type HuntArea,
   type IdentifyResult,
+  type OverlayId,
   type Track,
   type Waypoint,
   type SpeciesId,
@@ -22,6 +28,7 @@ import {
   pullWaypoints,
   registerAccount,
   runScoutRequest,
+  analyzeTerrainRequest,
   syncWaypoints,
 } from "@/lib/api";
 import {
@@ -33,7 +40,7 @@ import {
   saveWaypoint,
 } from "@/lib/offline";
 import { DEFAULT_FIELD_CENTER } from "@/lib/places";
-import { closeSheet, flyToBounds, openSheet, useHuntStore } from "@/lib/store";
+import { closeSheet, flyToBounds, flyToGpsFix, openSheet, readPersistedHunterState, useHuntStore } from "@/lib/store";
 import {
   AccountSheet,
   AreasSheet,
@@ -43,9 +50,12 @@ import {
   GpsSheet,
   KillSheet,
   LayersPanel,
+  MarkSheet,
   PropertySheet,
   ReturnSheet,
   ScoutSheet,
+  TerrainSheet,
+  TerrainHud,
   TopBar,
   WaypointSheet,
 } from "./FieldChrome";
@@ -63,8 +73,24 @@ function mergeWaypoints(local: Waypoint[], remote: Waypoint[]): Waypoint[] {
   return [...byId.values()];
 }
 
+async function cachePackUrl(url: string): Promise<boolean> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return false;
+    if (typeof caches !== "undefined") {
+      const cache = await caches.open("nomad-field-pack");
+      await cache.put(url, response.clone());
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function HuntOSApp() {
   const [habitat, setHabitat] = useState<HabitatCollection | null>(null);
+  const [terrainOverlay, setTerrainOverlay] = useState<HabitatCollection | null>(null);
+  const [huntingUnits, setHuntingUnits] = useState<HabitatCollection | null>(null);
   const [intelPoint, setIntelPoint] = useState<{ lng: number; lat: number }>();
   const [accountError, setAccountError] = useState<string>();
   const userId = useHuntStore((state) => state.userId);
@@ -75,6 +101,10 @@ export function HuntOSApp() {
   const fieldMode = useHuntStore((state) => state.fieldMode);
   const identify = useHuntStore((state) => state.identify);
   const mapBounds = useHuntStore((state) => state.mapBounds);
+  const neraMode = useHuntStore((state) => state.neraMode);
+  const neraStyle = useHuntStore((state) => state.neraStyle);
+  const wireframe = useHuntStore((state) => state.layers.wireframe);
+  const cameraMode = useHuntStore((state) => state.cameraMode);
   const scout = useHuntStore((state) => state.scout);
   const weather = useHuntStore((state) => state.weather);
 
@@ -90,11 +120,19 @@ export function HuntOSApp() {
       const stored = await allWaypoints(identity.id);
       const areas = await allHuntAreas(identity.id);
       const session = await fetchSession().catch(() => null);
+      const persisted = readPersistedHunterState();
       useHuntStore.setState({
         userId: identity.id,
         account: session,
         waypoints: stored,
         huntAreas: areas,
+        hunterState: persisted.hunterState,
+        packSelection:
+          persisted.packSelection.length > 0
+            ? persisted.packSelection
+            : persisted.hunterState
+              ? defaultPackSelection(persisted.hunterState)
+              : [],
       });
     })();
     return () => {
@@ -103,6 +141,7 @@ export function HuntOSApp() {
     };
   }, []);
 
+  const fpvWatch = cameraMode === "fpv";
   useEffect(() => {
     if (!navigator.geolocation) {
       useHuntStore.setState({
@@ -112,27 +151,31 @@ export function HuntOSApp() {
     }
     const watch = navigator.geolocation.watchPosition(
       (position) => {
-        useHuntStore.setState({
-          gps: {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-            accuracy: position.coords.accuracy,
-            altitude: position.coords.altitude ?? undefined,
-            heading: position.coords.heading ?? undefined,
-            speed: position.coords.speed ?? undefined,
-            source: "gps",
-          },
-        });
+        const next = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+          altitude: position.coords.altitude ?? undefined,
+          heading: position.coords.heading ?? undefined,
+          speed: position.coords.speed ?? undefined,
+          source: "gps" as const,
+        };
+        const state = useHuntStore.getState();
+        useHuntStore.setState({ gps: next });
+        if (!state.firstFixFlown) {
+          useHuntStore.setState({ firstFixFlown: true });
+          flyToGpsFix(next.latitude, next.longitude);
+        }
       },
       (error) => {
         useHuntStore.setState({
           gps: { source: "none", error: error.message },
         });
       },
-      { enableHighAccuracy: true, maximumAge: 5_000, timeout: 12_000 },
+      { enableHighAccuracy: true, maximumAge: fpvWatch ? 1_000 : 5_000, timeout: 12_000 },
     );
     return () => navigator.geolocation.clearWatch(watch);
-  }, []);
+  }, [fpvWatch]);
 
   useEffect(() => {
     const point =
@@ -222,6 +265,7 @@ export function HuntOSApp() {
     name: string;
     notes: string;
     species?: SpeciesId;
+    photos?: string[];
   }) => {
     if (!userId) return;
     const point = currentPoint();
@@ -239,7 +283,7 @@ export function HuntOSApp() {
       updatedAt: now,
       observedAt: now,
       species: input.species,
-      photos: [],
+      photos: (input.photos ?? []).slice(0, 6),
       tags: [],
       visibility: "private",
       syncStatus: "pending",
@@ -260,6 +304,7 @@ export function HuntOSApp() {
     const current = useHuntStore.getState();
     useHuntStore.setState({
       waypoints: [...waypoints, { ...queued, syncStatus: "pending" }],
+      selectedWaypointId: queued.id,
       truckWaypointId: input.type === "truck" ? queued.id : current.truckWaypointId,
       draftKillSpecies: input.species ?? current.draftKillSpecies,
       layers:
@@ -350,7 +395,7 @@ export function HuntOSApp() {
     const total = estimateRasterTileCount(mapBounds, 8, 11);
     let done = 0;
     useHuntStore.setState({
-      downloadProgress: { done, total, label: "Caching USGS topo + PAD-US" },
+      downloadProgress: { done, total, label: "Caching USGS topo + PAD-US + TPWD hunts" },
     });
     const nFor = (z: number) => 2 ** z;
     for (const z of zooms) {
@@ -374,10 +419,11 @@ export function HuntOSApp() {
           await Promise.all([
             fetch(`/api/tiles/usgs-topo/${z}/${x}/${y}`).catch(() => undefined),
             fetch(`/api/tiles/padus/${z}/${x}/${y}`).catch(() => undefined),
+            fetch(`/api/tiles/public-hunt/${z}/${x}/${y}`).catch(() => undefined),
           ]);
           done += 1;
           useHuntStore.setState({
-            downloadProgress: { done, total, label: "Caching USGS topo + PAD-US" },
+            downloadProgress: { done, total, label: "Caching USGS topo + PAD-US + TPWD hunts" },
           });
         }
       }
@@ -385,6 +431,49 @@ export function HuntOSApp() {
     await fetch(
       `/api/gis/features?west=${mapBounds.west}&south=${mapBounds.south}&east=${mapBounds.east}&north=${mapBounds.north}`,
     ).catch(() => undefined);
+  };
+
+  const downloadStatePack = async () => {
+    const state = useHuntStore.getState();
+    const code = state.hunterState;
+    const extent = packExtentForState(code);
+    const ids = sanitizePackSelection(code, state.packSelection);
+    if (!extent || ids.length === 0) return;
+    let cached: OverlayId[] = [...state.packCachedIds];
+    for (const id of ids) {
+      const overlay = overlayDefinition(id);
+      let ok = false;
+      if (overlay.cacheMode === "vector") {
+        useHuntStore.setState({
+          packStatus: { overlayId: id, done: 0, total: 1, label: overlay.label },
+        });
+        ok = await cachePackUrl(
+          `/api/gis/features?overlay=${id}&state=${code}&west=${extent.west}&south=${extent.south}&east=${extent.east}&north=${extent.north}`,
+        );
+      } else {
+        const tiles = listRasterTiles(extent, 7, 10);
+        let done = 0;
+        const total = tiles.length * overlay.tiles.length;
+        for (const tile of tiles) {
+          const results = await Promise.all(
+            overlay.tiles.map((spec) =>
+              cachePackUrl(`/api/tiles/${spec.id}/${tile.z}/${tile.x}/${tile.y}`),
+            ),
+          );
+          if (results.some(Boolean)) ok = true;
+          done += overlay.tiles.length;
+          useHuntStore.setState({
+            packStatus: { overlayId: id, done, total, label: overlay.label },
+          });
+        }
+      }
+      if (ok && !cached.includes(id)) cached = [...cached, id];
+      useHuntStore.setState({ packCachedIds: cached });
+    }
+    useHuntStore.setState({
+      packLastDownloaded: new Date().toISOString(),
+      packStatus: undefined,
+    });
   };
 
   const analyzeScout = async () => {
@@ -410,10 +499,70 @@ export function HuntOSApp() {
     });
     useHuntStore.setState({
       scoutResult: payload,
-      layers: { ...useHuntStore.getState().layers, huntScore: true },
+      layers: {
+        ...useHuntStore.getState().layers,
+        huntScore: true,
+        terrainFeatures: Boolean(payload.featureOverlay),
+        huntingUnits: Boolean(
+          payload.unitOverlay &&
+            (payload.unitOverlay as HabitatCollection).features?.length,
+        ),
+      },
     });
     setHabitat(payload.overlay as HabitatCollection);
+    if (payload.featureOverlay) {
+      setTerrainOverlay(payload.featureOverlay as HabitatCollection);
+    }
+    if (payload.unitOverlay) {
+      setHuntingUnits(payload.unitOverlay as HabitatCollection);
+    }
   };
+
+  const analyzeTerrain = useCallback(async () => {
+    if (!mapBounds) return;
+    const payload = (await analyzeTerrainRequest(mapBounds)) as {
+      overlay?: HabitatCollection;
+      features?: Array<{
+        kind: string;
+        label: string;
+        reasons: string[];
+        confidence: number;
+      }>;
+      cells?: Array<{
+        center?: { longitude: number; latitude: number };
+        slopeDegrees?: number | null;
+        elevationMeters?: number | null;
+        terrainPosition?: string;
+      }>;
+    };
+    useHuntStore.setState({
+      terrainResult: {
+        features: payload.features ?? [],
+        cells: (payload.cells ?? [])
+          .filter((cell) => cell.center)
+          .map((cell) => ({
+            longitude: cell.center!.longitude,
+            latitude: cell.center!.latitude,
+            slopeDegrees: cell.slopeDegrees ?? null,
+            elevationMeters: cell.elevationMeters ?? null,
+            terrainPosition: cell.terrainPosition,
+          })),
+      },
+      layers: { ...useHuntStore.getState().layers, terrainFeatures: true },
+    });
+    if (payload.overlay) setTerrainOverlay(payload.overlay);
+  }, [mapBounds]);
+
+  useEffect(() => {
+    if (!mapBounds) return;
+    if (cameraMode === "flat" && !neraMode) return;
+    const follow = useHuntStore.getState().followGps;
+    if (cameraMode === "fpv" && follow) return;
+    const timer = window.setTimeout(() => {
+      void analyzeTerrain();
+    }, 1200);
+    return () => window.clearTimeout(timer);
+  }, [neraMode, cameraMode, mapBounds, analyzeTerrain]);
 
   const saveArea = async (name: string) => {
     if (!userId || !mapBounds) return;
@@ -445,7 +594,7 @@ export function HuntOSApp() {
   );
 
   return (
-    <main className={`relative h-dvh w-full overflow-hidden bg-field-ink ${fieldMode ? "field-mode" : ""}`}>
+    <main className={`relative h-dvh w-full overflow-hidden bg-field-ink ${fieldMode ? "field-mode" : ""} ${neraMode ? "nera-mode" : ""} ${neraMode && neraStyle === "wire" ? "nera-wire" : ""} ${wireframe ? "wireframe-mesh" : ""}`}>
       <MapView
         onIdentify={(lng, lat) => void runIdentify(lng, lat)}
         onIntel={(lng, lat) => {
@@ -454,21 +603,41 @@ export function HuntOSApp() {
           openSheet("intel");
         }}
         habitat={habitat}
+        terrainFeatures={terrainOverlay}
+        huntingUnits={huntingUnits}
       />
-      <div className="pointer-events-none absolute inset-0 reticle" />
+      {!neraMode ? <div className="pointer-events-none absolute inset-0 reticle" /> : null}
+      {neraMode ? <div className="nera-frame" aria-hidden="true" /> : null}
+      <TerrainHud onScan={() => void analyzeTerrain()} />
       {!fieldMode && <TopBar />}
       {!fieldMode && <FieldExtras />}
       <Dock
         onLocate={() => {
-          if (gps.latitude === undefined) openSheet("gps");
+          const state = useHuntStore.getState();
+          if (gps.latitude === undefined || gps.longitude === undefined) {
+            openSheet("gps");
+            return;
+          }
+          if (state.cameraMode === "fpv") {
+            useHuntStore.setState({ fpvHeadingLock: true, followGps: true });
+            flyToGpsFix(gps.latitude, gps.longitude);
+            return;
+          }
+          const next = !state.followGps;
+          useHuntStore.setState({ followGps: next });
+          if (next) flyToGpsFix(gps.latitude, gps.longitude);
         }}
-        onWaypoint={() => openSheet("waypoint")}
+        onWaypoint={() => {
+          const selected = useHuntStore.getState().selectedWaypointId;
+          openSheet(selected ? "mark" : "waypoint");
+        }}
         onReturn={() => openSheet("return")}
         onKill={() => openSheet("kill")}
       />
       <LayersPanel />
       <PropertySheet result={identify} coordinate={intelPoint} />
       <WaypointSheet onSave={(input) => void createWaypoint(input)} />
+      <MarkSheet />
       <KillSheet
         onDrop={(species) =>
           void createWaypoint({
@@ -480,11 +649,13 @@ export function HuntOSApp() {
         }
       />
       <ScoutSheet onAnalyze={() => void analyzeScout()} />
+      <TerrainSheet onAnalyze={() => void analyzeTerrain()} />
       <DownloadSheet onDownload={() => void downloadArea()} />
       <ReturnSheet truck={truck} />
       <AreasSheet onSaveArea={(name) => void saveArea(name)} />
       <AccountSheet
         error={accountError}
+        onDownloadPack={() => void downloadStatePack()}
         onLogin={(email, password) => {
           setAccountError(undefined);
           void loginAccount(email, password)
@@ -528,14 +699,18 @@ export function HuntOSApp() {
         }}
         onOperatorFix={() => {
           if (!mapBounds) return;
+          const latitude = (mapBounds.south + mapBounds.north) / 2;
+          const longitude = (mapBounds.west + mapBounds.east) / 2;
           useHuntStore.setState({
             gps: {
-              latitude: (mapBounds.south + mapBounds.north) / 2,
-              longitude: (mapBounds.west + mapBounds.east) / 2,
+              latitude,
+              longitude,
               source: "operator",
               error: "Operator-set map center. This is not a GPS fix.",
             },
+            firstFixFlown: true,
           });
+          flyToGpsFix(latitude, longitude);
         }}
       />
     </main>

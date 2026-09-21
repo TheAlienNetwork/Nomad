@@ -39,8 +39,10 @@ export interface HarvestHeatCell {
   disclaimer: string;
 }
 
-const DISCLAIMER =
+export const HARVEST_HEAT_DISCLAIMER =
   "This heat map is only your recorded kills. It is observed history, not a prediction that animals will be there.";
+
+const DISCLAIMER = HARVEST_HEAT_DISCLAIMER;
 
 export function harvestHeatmap(
   points: readonly LonLat[],

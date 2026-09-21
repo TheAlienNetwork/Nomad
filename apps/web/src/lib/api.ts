@@ -123,3 +123,20 @@ export async function runScoutRequest(body: {
   }
   return response.json();
 }
+
+export async function analyzeTerrainRequest(body: {
+  west: number;
+  south: number;
+  east: number;
+  north: number;
+}) {
+  const response = await fetch("/api/terrain/analyze", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    throw new Error("Terrain analysis failed without substituting results.");
+  }
+  return response.json();
+}

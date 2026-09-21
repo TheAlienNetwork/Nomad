@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@huntos/core"],
+  transpilePackages: ["@huntos/core", "maplibre-contour"],
   poweredByHeader: false,
   output: "standalone",
 };

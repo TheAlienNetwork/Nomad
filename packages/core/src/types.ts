@@ -11,6 +11,7 @@ export type DatasetStatus =
 export type ServiceType =
   | "arcgis-featureserver"
   | "arcgis-mapserver"
+  | "arcgis-imageserver"
   | "geojson"
   | "wfs"
   | "shapefile"
@@ -18,6 +19,7 @@ export type ServiceType =
   | "pmtiles"
   | "vector-tiles"
   | "xyz-raster"
+  | "wms"
   | "open-meteo";
 
 export type Visibility = "private" | "hunting_party" | "shared";
@@ -50,7 +52,17 @@ export type WaypointType =
   | "hazard"
   | "custom";
 
-export type SpeciesId = "whitetail" | "mule_deer" | "elk" | "turkey";
+export type SpeciesId =
+  | "whitetail"
+  | "mule_deer"
+  | "elk"
+  | "turkey"
+  | "feral_hog"
+  | "dove"
+  | "waterfowl"
+  | "sika_deer"
+  | "axis_deer"
+  | "nilgai";
 
 export type PublicAccessCode = "open" | "restricted" | "closed" | "unknown";
 
@@ -179,6 +191,12 @@ export const SPECIES: readonly SpeciesId[] = [
   "mule_deer",
   "elk",
   "turkey",
+  "feral_hog",
+  "dove",
+  "waterfowl",
+  "sika_deer",
+  "axis_deer",
+  "nilgai",
 ] as const;
 
 export const SPECIES_LABELS: Record<SpeciesId, string> = {
@@ -186,4 +204,10 @@ export const SPECIES_LABELS: Record<SpeciesId, string> = {
   mule_deer: "Mule deer",
   elk: "Elk",
   turkey: "Turkey",
+  feral_hog: "Feral hog",
+  dove: "Dove",
+  waterfowl: "Waterfowl",
+  sika_deer: "Sika deer",
+  axis_deer: "Axis deer",
+  nilgai: "Nilgai",
 };

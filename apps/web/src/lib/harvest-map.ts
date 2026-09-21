@@ -9,6 +9,7 @@ export interface HarvestFeatureCollection {
       name: string;
       type: Waypoint["type"];
       species: string;
+      hasPhoto: number;
       truthLayer: "observed";
     };
     geometry: {
@@ -32,6 +33,7 @@ export function harvestsToFc(waypoints: Waypoint[]): HarvestFeatureCollection {
         name: waypoint.name,
         type: waypoint.type,
         species: waypoint.species ?? "",
+        hasPhoto: waypoint.photos[0] ? 1 : 0,
         truthLayer: "observed",
       },
       geometry: {

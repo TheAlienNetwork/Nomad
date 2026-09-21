@@ -2,6 +2,18 @@ import { Platform } from 'react-native';
 
 const orange = '#F15A24';
 
+export const Nomad = {
+  rust: orange,
+  rustDeep: '#C2410C',
+  ink: '#02080c',
+  steel: '#081018',
+  slate: '#0c1820',
+  bone: '#E8DFD0',
+  mist: '#A39A8C',
+  line: 'rgba(103,232,249,0.22)',
+  glass: 'rgba(2,8,12,0.72)',
+};
+
 export const Colors = {
   light: {
     text: '#F5F5F5',
@@ -34,6 +46,12 @@ export const Fonts = Platform.select({
     rounded: 'ui-rounded',
     mono: 'ui-monospace',
   },
+  android: {
+    sans: 'normal',
+    serif: 'serif',
+    rounded: 'normal',
+    mono: 'monospace',
+  },
   default: {
     sans: 'normal',
     serif: 'serif',
@@ -46,4 +64,9 @@ export const Fonts = Platform.select({
     rounded: "'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif",
     mono: "SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
   },
-});
+}) ?? {
+  sans: 'normal',
+  serif: 'serif',
+  rounded: 'normal',
+  mono: 'monospace',
+};

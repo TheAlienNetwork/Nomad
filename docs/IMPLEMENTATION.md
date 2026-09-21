@@ -52,13 +52,31 @@
 - Rate limits, security headers, health endpoint, privacy/terms
 - Docker image and production runbook
 
+## Phase 1 — Foundation (deepened)
+
+- Monorepo, strict TypeScript
+- Auth abstraction (local identity; Supabase placeholders)
+- MapLibre field map, USGS basemaps via same-origin tile proxy
+- GIS provider interface + PAD-US adapter
+- Dataset registry + admin enable/disable + health checks
+- GPS instrument, breadcrumbs, waypoints, layer panel
+- Property / access card with provenance and boundary warning
+- DEM terrain-feature detection (saddle, bench, funnel, pinch, ridge, drainage, basin, cliff, glassing candidate)
+- Explainable Nomad Score (existing habitat overall) with period/method/wind/feature reasons
+- Optional USGS NHD hydrography for water distance; NLCD and TNM roads stay unconfigured until official URLs are set
+- Analyze Terrain overlay on web and Expo via `/api/terrain/analyze`
+
 ## Remaining work
 
-- Native React Native / Expo client
+- Expo Hunt / Memoir / Gear shell (shipped; keep parity with web intelligence)
 - PostGIS ingest jobs, tile generation, version compare
 - Official TPWD hunting-unit endpoint when published/configured
 - Structured regulation import (never LLM-authored)
 - Full DEM / land-cover / hydrography packages
-- Trail-camera vision service
-- Party sharing and AR overlays
-- Production auth and object storage
+- Pulse heatmap timeline (Phase 2)
+- Map-aware assistant chat (Phase 3)
+- FIND MY HUNT discovery (Phase 4)
+- Glassing LOS, stealth routing, thermals, movement corridors (Phase 5)
+- Offline packages, Recovery, Guardian (Phase 6)
+- Trail-camera vision / AR (Phase 7)
+- Party sharing and production object storage

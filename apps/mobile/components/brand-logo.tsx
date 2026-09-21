@@ -1,5 +1,4 @@
-import { Image } from 'expo-image';
-import { StyleSheet, type ImageStyle, type StyleProp } from 'react-native';
+import { Image, StyleSheet, type ImageStyle, type StyleProp } from 'react-native';
 
 const logo = require('@/assets/images/nomad-logo.png');
 
@@ -13,8 +12,8 @@ export function BrandLogo({ size = 220, style }: BrandLogoProps) {
     <Image
       source={logo}
       style={[styles.logo, { width: size, height: size }, style]}
-      contentFit="contain"
-      accessibilityLabel="Nomad Hunting App"
+      resizeMode="contain"
+      accessibilityLabel="Nomad"
     />
   );
 }

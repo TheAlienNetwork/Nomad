@@ -1,0 +1,38 @@
+Play Console — Internal testing only (not Production, not Open testing)
+
+App name: Nomad
+Package: com.nomad.field
+Version: 1.0.28 (versionCode 29)
+EAS project: https://expo.dev/accounts/scarspace/projects/Nomad
+Build: https://expo.dev/accounts/scarspace/projects/Nomad/builds/edd4374d-c497-465c-a3b6-8f7a7b086646
+AAB: https://expo.dev/artifacts/eas/bDQrV5pn9JLHAPpKRc-tTDFOh6jEC6TLZhfuVVHmHEw.aab
+Privacy (public): https://nomad-field-privacy.vercel.app
+Privacy (in app): Nomad → You → Privacy
+
+Play photo/video permissions:
+- Do NOT declare broad READ_MEDIA_IMAGES / READ_MEDIA_VIDEO access.
+- Nomad uses the Android Photo Picker for one-off picks (memoir, waypoints, profile).
+- Save-to-roll uses write-only media permission when needed.
+- Deobfuscation mapping warning is optional for this Expo/Hermes AAB — ignore unless you enable R8 mapping upload.
+
+Data safety (honest answers):
+- Location: Yes, precise. App functionality (map position, hunt tracks).
+  Optional to user (OS permission). Collected on device; synced when signed in.
+- Photos: Yes, optional. One-off picks via system picker for memoir sketches, waypoint photos, and profile.
+  They can also save a sketched JPEG to the camera roll.
+- Microphone: No on this Android build. Web memoir dictation only.
+- Account: Email. Sign-in. Not sold. Not used for ads.
+- Advertising ID: No
+- Analytics SDK: No
+- Data sold: No
+- Data shared with third parties for ads: No
+
+Steps:
+1. Create the Play app with package com.nomad.field
+2. Download the preview AAB from the EAS build page
+3. Release → Testing → Internal testing → Create release → Upload AAB
+4. Fill Data safety as above
+5. Add tester emails (start with yours)
+6. Share the internal opt-in link
+
+Do not promote to Production or Open testing in this milestone.

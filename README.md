@@ -62,7 +62,9 @@ npm run dcdev
 
 Open `http://localhost:3000` for the map and `/admin` for dataset health.
 
-The Expo shell lives in `apps/mobile` (`@huntos/mobile`). `npm run dcdev` starts it on Android and web with satellite, USGS topo, and PAD-US public-land layers.
+The Expo shell lives in `apps/mobile` (`@huntos/mobile`). `npm run dcdev` starts it on Android and web. Tabs are **Hunt** (full-screen field map), **Memoir** (lined notebook bound to real hunt sessions), and **Gear**. Satellite, USGS topo, hybrid, and PAD-US public-land tiles stay on the Hunt map. Start/end hunt writes a track and a Memoir timeline. Identify and weather call `EXPO_PUBLIC_HUNTOS_API_URL` when set; otherwise land status and weather stay **unknown**.
+
+Later phases stay on `@huntos/core` + PostGIS and are not rebuilt in Expo: trail-camera vision, AR, state regulation adapters, nationwide parcels, PMTiles packaging, and LLM-written seasons.
 
 ### Credentials
 
@@ -75,6 +77,7 @@ None are required for the V1 vertical slice.
 | `DATABASE_URL` | No | Apply `packages/db/migrations` for production PostGIS |
 | `TPWD_HUNTING_UNITS_URL` | No | Official Texas hunting-unit service when you have it |
 | `PADUS_FEATURE_URL` | No | Override if the USGS endpoint changes |
+| `EXPO_PUBLIC_HUNTOS_API_URL` | Yes for Play Score/Terrain | Expo identify / weather / scout / terrain against `apps/web` (no trailing slash) |
 
 Copy `.env.example` to `apps/web/.env.local`.
 

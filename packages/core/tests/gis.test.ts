@@ -2,10 +2,18 @@ import { describe, expect, it } from "vitest";
 import {
   assertNoFabricatedLegalStatus,
   createGeoJsonProvider,
+  describeLandStatus,
+  describeParcelStatus,
+  extractPublishedRegulationFields,
+  featuresContainingPoint,
   identifyFromCollection,
+  isMuleDeerDrawListing,
   mapPadusAccess,
   normalizePadusFeature,
+  overlayFeatureLabel,
   provenanceFromRecord,
+  unavailableIdentify,
+  arcgisQueryUrl,
 } from "../src/gis";
 import { BOUNDARY_CONFIDENCE_WARNING } from "../src/types";
 import type { DatasetRecord } from "../src/types";
@@ -112,5 +120,89 @@ describe("public-land lookup", () => {
     expect(miss.status).toBe("unknown");
     expect(miss.message).toMatch(/does not mean the land is private/i);
     assertNoFabricatedLegalStatus(miss);
+  });
+
+  it("keeps unavailable identify as unknown and never claims private land", () => {
+    const result = unavailableIdentify(
+      "HUNT//OS API is not configured. Public/private status cannot be determined.",
+    );
+    const copy = describeLandStatus(result);
+    expect(result.found).toBe(false);
+    expect(result.status).toBe("unknown");
+    expect(copy.unknown).toBe(true);
+    expect(copy.headline).toBe("Land status unknown");
+    expect(copy.headline.toLowerCase()).not.toContain("private");
+    assertNoFabricatedLegalStatus(result);
+  });
+
+  it("labels overlay polygons without inventing private land", () => {
+    const hits = featuresContainingPoint(polygon, { longitude: -95, latitude: 31 });
+    const miss = featuresContainingPoint(polygon, { longitude: -90, latitude: 31 });
+    expect(overlayFeatureLabel(hits[0], "PAD-US")).toBe("TEST PUBLIC UNIT A");
+    expect(miss).toHaveLength(0);
+  });
+});
+
+describe("ArcGIS query URLs", () => {
+  it("omits resultRecordCount when the layer does not support pagination", () => {
+    const url = arcgisQueryUrl({
+      sourceUrl: "https://example.test/MapServer/0",
+      bounds: { west: -96, south: 30, east: -94, north: 32 },
+      resultRecordCount: null,
+    });
+    expect(url).not.toMatch(/resultRecordCount/);
+    expect(url).toMatch(/f=geojson/);
+  });
+
+  it("includes a where clause for state extracts", () => {
+    const url = arcgisQueryUrl({
+      sourceUrl: "https://example.test/MapServer/0",
+      bounds: { west: -96, south: 30, east: -94, north: 32 },
+      where: "State_Nm = 'TX'",
+    });
+    expect(url).toMatch(/where=State_Nm/);
+  });
+});
+
+describe("Texas parcels and published regs", () => {
+  it("copies only season, weapon, or date fields from TPWD attributes", () => {
+    expect(
+      extractPublishedRegulationFields({
+        Name: "Test WMA",
+        Season: "Nov 1 – Jan 4",
+        Weapon: "Archery",
+        Comments: "Ignore me",
+      }),
+    ).toEqual([
+      { label: "Season", value: "Nov 1 – Jan 4" },
+      { label: "Weapon", value: "Archery" },
+    ]);
+    expect(extractPublishedRegulationFields({ Name: "Test WMA", Class: "Public" })).toEqual([]);
+    expect(
+      describeParcelStatus({
+        found: true,
+        ownerName: "SMITH JOHN",
+        county: "Travis",
+        taxYear: "2025",
+        message: "ok",
+        retrievedAt: "2026-01-01T00:00:00.000Z",
+        provenance,
+      }).headline,
+    ).toBe("SMITH JOHN");
+    expect(
+      describeParcelStatus({
+        found: true,
+        county: "Travis",
+        message: "ok",
+        retrievedAt: "2026-01-01T00:00:00.000Z",
+        provenance,
+      }).headline,
+    ).toBe("Owner unknown");
+  });
+
+  it("flags known mule deer draw area names without inventing seasons", () => {
+    expect(isMuleDeerDrawListing("Big Bend Ranch SP")).toBe(true);
+    expect(isMuleDeerDrawListing("Black Gap WMA")).toBe(true);
+    expect(isMuleDeerDrawListing("Random pasture")).toBe(false);
   });
 });

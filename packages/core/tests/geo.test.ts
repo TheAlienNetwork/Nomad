@@ -2,8 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   formatBearing,
   formatDistance,
+  formatLengthFeet,
+  formatSpeedMph,
+  formatTemperatureF,
   haversineMeters,
   initialBearingDegrees,
+  listRasterTiles,
+  geodesicCircleRing,
   normalizeBearing,
   pathLengthMeters,
   pointInPolygon,
@@ -35,6 +40,13 @@ describe("distance and bearing", () => {
   it("formats field distances", () => {
     expect(formatDistance(80)).toMatch(/yd/);
     expect(formatDistance(3200)).toMatch(/mi/);
+  });
+
+  it("formats American field units", () => {
+    expect(formatTemperatureF(0)).toBe("32°F");
+    expect(formatTemperatureF(30)).toBe("86°F");
+    expect(formatLengthFeet(10)).toBe("33 ft");
+    expect(formatSpeedMph(4)).toBe("9 mph");
   });
 
   it("formats compass bearings", () => {
@@ -69,5 +81,15 @@ describe("spatial helpers", () => {
     const bbox = tileToBBox(1, 0, 0);
     expect(bbox.west).toBe(-180);
     expect(bbox.east).toBe(0);
+  });
+
+  it("lists statewide pack tiles only through z10", () => {
+    const tiles = listRasterTiles(
+      { west: -106.65, south: 25.84, east: -93.51, north: 36.5 },
+      7,
+      10,
+    );
+    expect(tiles.every((tile) => tile.z <= 10)).toBe(true);
+    expect(geodesicCircleRing({ latitude: 30, longitude: -95 }, 40)).toHaveLength(49);
   });
 });

@@ -19,7 +19,16 @@ const mono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "HUNT//OS",
   description: "Hunting Intelligence. Anywhere.",
-  icons: { icon: "/favicon.svg" },
+  themeColor: "#070b08",
+  appleWebApp: {
+    capable: true,
+    title: "HUNT//OS",
+    statusBarStyle: "black",
+  },
+  icons: {
+    icon: "/favicon.svg",
+    apple: "/icons/apple-touch-icon.png",
+  },
 };
 
 export default function RootLayout({

@@ -22,3 +22,5 @@ packages/core/dist
 .vscode
 apps/web/data
 *.tmp
+supabase/.temp
+.env*

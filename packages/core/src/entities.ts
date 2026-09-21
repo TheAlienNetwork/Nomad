@@ -38,6 +38,7 @@ export interface HuntArea {
   south: number;
   east: number;
   north: number;
+  ring?: LonLat[];
   createdAt: string;
   updatedAt: string;
   visibility: Visibility;
@@ -125,9 +126,12 @@ export interface OfflineRegion {
   north: number;
   minZoom: number;
   maxZoom: number;
+  stateCode?: string;
+  overlayIds?: string[];
+  overlayProgress?: Record<string, { done: number; total: number; status: "queued" | "downloading" | "ready" | "error" }>;
   estimatedBytes?: number;
   downloadedBytes?: number;
   lastUpdate?: string;
   datasetVersions: Record<string, string | undefined>;
-  status: "queued" | "downloading" | "ready" | "error";
+  status: "queued" | "downloading" | "ready" | "error" | "cancelled";
 }

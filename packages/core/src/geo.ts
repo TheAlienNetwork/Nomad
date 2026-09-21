@@ -58,6 +58,9 @@ export function destinationPoint(
   return { latitude: toDegrees(lat2), longitude: toDegrees(lon2) };
 }
 
+const METERS_TO_FEET = 3.28084;
+const MPS_TO_MPH = 2.23694;
+
 export function formatDistance(meters: number): string {
   if (!Number.isFinite(meters)) return "—";
   if (meters < 1609.344 / 10) {
@@ -66,6 +69,21 @@ export function formatDistance(meters: number): string {
   }
   const miles = meters / 1609.344;
   return `${miles < 10 ? miles.toFixed(1) : Math.round(miles)} mi`;
+}
+
+export function formatTemperatureF(celsius: number): string {
+  if (!Number.isFinite(celsius)) return "—";
+  return `${Math.round(celsius * (9 / 5) + 32)}°F`;
+}
+
+export function formatLengthFeet(meters: number): string {
+  if (!Number.isFinite(meters)) return "—";
+  return `${Math.round(meters * METERS_TO_FEET)} ft`;
+}
+
+export function formatSpeedMph(metersPerSecond: number): string {
+  if (!Number.isFinite(metersPerSecond)) return "—";
+  return `${Math.round(metersPerSecond * MPS_TO_MPH)} mph`;
 }
 
 export function formatBearing(degrees: number): string {
@@ -165,31 +183,63 @@ export function tileToBBox(
   return { west, south, east, north };
 }
 
+export function mercatorTileRange(
+  bbox: BoundingBox,
+  z: number,
+): { xMin: number; xMax: number; yMin: number; yMax: number } {
+  const n = 2 ** z;
+  const xMin = Math.floor(((bbox.west + 180) / 360) * n);
+  const xMax = Math.floor(((bbox.east + 180) / 360) * n);
+  const latToY = (lat: number) => {
+    const latRad = toRadians(lat);
+    return Math.floor(
+      ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * n,
+    );
+  };
+  return {
+    xMin,
+    xMax,
+    yMin: latToY(bbox.north),
+    yMax: latToY(bbox.south),
+  };
+}
+
+export function listRasterTiles(
+  bbox: BoundingBox,
+  minZoom: number,
+  maxZoom: number,
+): Array<{ z: number; x: number; y: number }> {
+  const tiles: Array<{ z: number; x: number; y: number }> = [];
+  for (let z = minZoom; z <= maxZoom; z += 1) {
+    const range = mercatorTileRange(bbox, z);
+    for (let x = range.xMin; x <= range.xMax; x += 1) {
+      for (let y = range.yMin; y <= range.yMax; y += 1) {
+        tiles.push({ z, x, y });
+      }
+    }
+  }
+  return tiles;
+}
+
 export function estimateRasterTileCount(
   bbox: BoundingBox,
   minZoom: number,
   maxZoom: number,
 ): number {
-  let count = 0;
-  for (let z = minZoom; z <= maxZoom; z += 1) {
-    const n = 2 ** z;
-    const xMin = Math.floor(((bbox.west + 180) / 360) * n);
-    const xMax = Math.floor(((bbox.east + 180) / 360) * n);
-    const latRadNorth = toRadians(bbox.north);
-    const latRadSouth = toRadians(bbox.south);
-    const yMin = Math.floor(
-      ((1 - Math.log(Math.tan(latRadNorth) + 1 / Math.cos(latRadNorth)) / Math.PI) /
-        2) *
-        n,
-    );
-    const yMax = Math.floor(
-      ((1 - Math.log(Math.tan(latRadSouth) + 1 / Math.cos(latRadSouth)) / Math.PI) /
-        2) *
-        n,
-    );
-    count += (xMax - xMin + 1) * (yMax - yMin + 1);
+  return listRasterTiles(bbox, minZoom, maxZoom).length;
+}
+
+export function geodesicCircleRing(
+  center: LonLat,
+  radiusMeters: number,
+  steps = 48,
+): Array<[number, number]> {
+  const ring: Array<[number, number]> = [];
+  for (let i = 0; i <= steps; i += 1) {
+    const point = destinationPoint(center, (i / steps) * 360, radiusMeters);
+    ring.push([point.longitude, point.latitude]);
   }
-  return Math.max(0, count);
+  return ring;
 }
 
 export function pathLengthMeters(points: readonly LonLat[]): number {

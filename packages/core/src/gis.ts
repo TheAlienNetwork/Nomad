@@ -1,4 +1,6 @@
-import { pointInPolygon } from "./geo";
+import { haversineMeters, pointInPolygon } from "./geo";
+import { TX_STRATMAP_PARCELS_MAPSERVER } from "./overlays";
+import { stateHuntGuide } from "./state-guides";
 import {
   BOUNDARY_CONFIDENCE_WARNING,
   type BoundingBox,
@@ -8,6 +10,23 @@ import {
   type PublicAccessCode,
   type TruthLayer,
 } from "./types";
+
+const TPWD_PUBLIC_HUNT_MAPSERVER =
+  "https://tpwd.texas.gov/server/rest/services/Wildlife/TPWD_PublicHuntLocatorMap/MapServer";
+
+const TPWD_DRAWN_HUNT_CATALOG =
+  "https://tpwd.texas.gov/huntwild/hunt/public/public_hunt_drawing/hunt-areas.phtml";
+
+const PUBLISHED_REG_FIELD =
+  /season|weapon|bag.?limit|legal.?method|hunt.?date|method.?of.?take|open.?date|close.?date/i;
+
+/** Known TPWD mule-deer draw area name fragments (not seasons or odds). */
+const MULE_DEER_DRAW_AREA =
+  /big\s*bend|black\s*gap|elephant\s*mountain|matador|caprock|gene\s*howe|sierra\s*diablo|yoakum|cross\s*bar|mule\s*deer/i;
+
+export function isMuleDeerDrawListing(text: string): boolean {
+  return MULE_DEER_DRAW_AREA.test(text);
+}
 
 export interface GeoJsonGeometry {
   type: string;
@@ -53,6 +72,35 @@ export interface IdentifyResult {
   }>;
   message: string;
   warnings: string[];
+  /** Texas StratMap appraisal parcel under the tap, when queried. */
+  parcel?: TexasParcelIdentify;
+  /**
+   * Season, weapon, or date attributes copied from a TPWD public-hunt feature
+   * when those field names exist. Never invented.
+   */
+  publishedRegs?: PublishedRegulationSnippet | null;
+}
+
+export interface TexasParcelIdentify {
+  found: boolean;
+  ownerName?: string;
+  county?: string;
+  taxYear?: string;
+  message: string;
+  retrievedAt: string;
+  provenance: Provenance;
+}
+
+export interface PublishedRegulationSnippet {
+  areaName?: string;
+  fields: Array<{ label: string; value: string }>;
+  retrievedAt: string;
+  agency: string;
+  sourceUrl: string;
+  outdoorAnnualUrl?: string;
+  /** True when Name/Class match a known TPWD mule-deer draw listing (e.g. Big Bend Ranch). */
+  muleDeerDrawListed?: boolean;
+  drawCatalogUrl?: string;
 }
 
 export interface GISProvider {
@@ -118,6 +166,77 @@ export function normalizePadusFeature(
 
 export function emptyFeatureCollection(): GeoJsonFeatureCollection {
   return { type: "FeatureCollection", features: [] };
+}
+
+function flattenPositions(coordinates: unknown): LonLat[] {
+  if (!Array.isArray(coordinates) || coordinates.length === 0) return [];
+  const first = coordinates[0];
+  if (typeof first === "number" && typeof coordinates[1] === "number") {
+    return [{ longitude: first, latitude: coordinates[1] }];
+  }
+  return coordinates.flatMap((item) => flattenPositions(item));
+}
+
+export function distanceToGeometry(
+  point: LonLat,
+  geometry: GeoJsonGeometry | null,
+): number | null {
+  if (!geometry) return null;
+  if (geometryContainsPoint(geometry, point)) return 0;
+  const positions = flattenPositions(geometry.coordinates);
+  if (positions.length === 0) return null;
+  return Math.min(...positions.map((item) => haversineMeters(point, item)));
+}
+
+export function nearestDistanceMeters(
+  point: LonLat,
+  collection: GeoJsonFeatureCollection,
+): number | null {
+  if (collection.features.length === 0) return null;
+  let min = Number.POSITIVE_INFINITY;
+  for (const feature of collection.features) {
+    const distance = distanceToGeometry(point, feature.geometry);
+    if (distance !== null && distance < min) min = distance;
+  }
+  return Number.isFinite(min) ? min : null;
+}
+
+export function overlayFeatureLabel(
+  feature: GeoJsonFeature | undefined,
+  fallback: string,
+): string {
+  if (!feature) return fallback;
+  const props = feature.properties ?? {};
+  return (
+    asString(props.Unit_Nm) ??
+    asString(props.LocName) ??
+    asString(props.Loc_Nm) ??
+    asString(props.UnitNumber) ??
+    asString(props.label) ??
+    asString(props.name) ??
+    asString(props.NAME) ??
+    fallback
+  );
+}
+
+export function featuresContainingPoint(
+  collection: GeoJsonFeatureCollection,
+  point: LonLat,
+): GeoJsonFeature[] {
+  return collection.features.filter((feature) =>
+    geometryContainsPoint(feature.geometry, point),
+  );
+}
+
+export function uniqueOverlayLabels(
+  collection: GeoJsonFeatureCollection,
+  fallback: string,
+): string[] {
+  const labels = new Set<string>();
+  for (const feature of collection.features) {
+    labels.add(overlayFeatureLabel(feature, fallback));
+  }
+  return [...labels];
 }
 
 export function geometryContainsPoint(
@@ -187,6 +306,34 @@ export function unavailableIdentify(reason: string): IdentifyResult {
   };
 }
 
+export interface LandStatusCopy {
+  headline: string;
+  detail: string;
+  unknown: boolean;
+}
+
+export function describeLandStatus(
+  result: IdentifyResult | undefined,
+): LandStatusCopy {
+  if (!result || !result.found || result.status === "unknown") {
+    return {
+      headline: "Land status unknown",
+      detail:
+        result?.message ??
+        "Land status unknown — verify posted boundaries. Missing GIS is not a public or private claim.",
+      unknown: true,
+    };
+  }
+  const feature = result.features[0];
+  const name = feature?.properties.name ?? "Public land";
+  const manager = feature?.properties.manager ?? "Unknown agency";
+  return {
+    headline: name,
+    detail: `Managing agency: ${manager}. ${result.message}`,
+    unknown: false,
+  };
+}
+
 export interface ArcgisQueryOptions {
   sourceUrl: string;
   layerIdentifier?: string;
@@ -195,7 +342,8 @@ export interface ArcgisQueryOptions {
   outFields?: string;
   returnGeometry?: boolean;
   maxAllowableOffset?: number;
-  resultRecordCount?: number;
+  resultRecordCount?: number | null;
+  where?: string;
   timeoutMs?: number;
   fetchImpl?: typeof fetch;
 }
@@ -213,10 +361,15 @@ export function arcgisQueryUrl(options: ArcgisQueryOptions): string {
     outFields: options.outFields ?? "*",
     returnGeometry: String(options.returnGeometry ?? true),
     f: "geojson",
-    resultRecordCount: String(options.resultRecordCount ?? 200),
   });
+  if (options.resultRecordCount !== null) {
+    params.set("resultRecordCount", String(options.resultRecordCount ?? 200));
+  }
   if (options.maxAllowableOffset !== undefined) {
     params.set("maxAllowableOffset", String(options.maxAllowableOffset));
+  }
+  if (options.where) {
+    params.set("where", options.where);
   }
   if (options.bounds) {
     params.set(
@@ -437,4 +590,183 @@ export function assertNoFabricatedLegalStatus(result: IdentifyResult): void {
       "AI safety: public status requires at least one authoritative feature.",
     );
   }
+}
+
+export function describeParcelStatus(
+  parcel: TexasParcelIdentify | undefined,
+): LandStatusCopy {
+  if (!parcel) {
+    return {
+      headline: "Owner unknown",
+      detail:
+        "Parcel lookup was not run. Verify posted boundaries before entering.",
+      unknown: true,
+    };
+  }
+  if (!parcel.found) {
+    return {
+      headline: "Owner unknown",
+      detail: parcel.message,
+      unknown: true,
+    };
+  }
+  const owner = parcel.ownerName?.trim();
+  if (!owner) {
+    return {
+      headline: "Owner unknown",
+      detail: [
+        parcel.county ? `County: ${parcel.county}.` : null,
+        parcel.taxYear ? `Tax year: ${parcel.taxYear}.` : null,
+        "Appraisal parcel found without a published owner name. Not survey-grade and not permission to enter.",
+      ]
+        .filter(Boolean)
+        .join(" "),
+      unknown: true,
+    };
+  }
+  return {
+    headline: owner,
+    detail: [
+      parcel.county ? `County: ${parcel.county}.` : null,
+      parcel.taxYear ? `Tax year: ${parcel.taxYear}.` : null,
+      "As published by the county appraisal district via TxGIO StratMap. Not survey-grade and not permission to enter.",
+    ]
+      .filter(Boolean)
+      .join(" "),
+    unknown: false,
+  };
+}
+
+export function extractPublishedRegulationFields(
+  properties: Record<string, unknown> | null | undefined,
+): Array<{ label: string; value: string }> {
+  if (!properties) return [];
+  const fields: Array<{ label: string; value: string }> = [];
+  for (const [key, raw] of Object.entries(properties)) {
+    if (!PUBLISHED_REG_FIELD.test(key)) continue;
+    const value = asString(raw);
+    if (!value) continue;
+    fields.push({ label: key, value });
+  }
+  return fields;
+}
+
+export async function queryTexasParcelAt(
+  point: LonLat,
+  options?: { fetchImpl?: typeof fetch; timeoutMs?: number },
+): Promise<TexasParcelIdentify> {
+  const retrievedAt = new Date().toISOString();
+  const provenance: Provenance = {
+    datasetId: "tx-stratmap-parcels",
+    name: "Texas StratMap Land Parcels",
+    agency: "Texas Geographic Information Office",
+    sourceUrl: `${TX_STRATMAP_PARCELS_MAPSERVER}/0`,
+    retrievedAt,
+    attribution:
+      "Texas Geographic Information Office StratMap land parcels. Appraisal-district geometry; not survey grade.",
+    jurisdiction: "TX",
+  };
+  try {
+    const collection = await queryArcgisGeoJson({
+      sourceUrl: TX_STRATMAP_PARCELS_MAPSERVER,
+      layerIdentifier: "0",
+      point,
+      outFields: "owner_name,county,tax_year,prop_id",
+      returnGeometry: false,
+      resultRecordCount: 1,
+      timeoutMs: options?.timeoutMs ?? 20_000,
+      fetchImpl: options?.fetchImpl,
+    });
+    const feature = collection.features[0];
+    if (!feature) {
+      return {
+        found: false,
+        message:
+          "Owner unknown — no StratMap parcel intersects this location (Donley County is missing from the statewide layer).",
+        retrievedAt,
+        provenance,
+      };
+    }
+    const props = feature.properties ?? {};
+    return {
+      found: true,
+      ownerName: asString(props.owner_name),
+      county: asString(props.county),
+      taxYear: asString(props.tax_year),
+      message: "Appraisal parcel found.",
+      retrievedAt,
+      provenance,
+    };
+  } catch {
+    return {
+      found: false,
+      message: "Owner unknown — parcel lookup failed. Verify posted boundaries.",
+      retrievedAt,
+      provenance,
+    };
+  }
+}
+
+export async function queryTpwdPublishedRegsAt(
+  point: LonLat,
+  options?: { fetchImpl?: typeof fetch; timeoutMs?: number; stateCode?: string },
+): Promise<PublishedRegulationSnippet | null> {
+  const retrievedAt = new Date().toISOString();
+  const guide = stateHuntGuide(options?.stateCode ?? "TX");
+  try {
+    const collection = await queryArcgisGeoJson({
+      sourceUrl: TPWD_PUBLIC_HUNT_MAPSERVER,
+      layerIdentifier: "9",
+      point,
+      outFields: "*",
+      returnGeometry: false,
+      resultRecordCount: 3,
+      timeoutMs: options?.timeoutMs ?? 20_000,
+      fetchImpl: options?.fetchImpl,
+    });
+    const feature = collection.features[0];
+    if (!feature) return null;
+    const props = feature.properties ?? {};
+    const fields = extractPublishedRegulationFields(props);
+    const areaName =
+      asString(props.Name) ??
+      asString(props.LocName) ??
+      asString(props.Name_Acres) ??
+      asString(props.Property);
+    const className = asString(props.Class) ?? asString(props.Class2) ?? "";
+    const haystack = `${areaName ?? ""} ${className} ${asString(props.Comments) ?? ""}`;
+    const muleDeerDrawListed = isMuleDeerDrawListing(haystack);
+    return {
+      areaName,
+      fields,
+      retrievedAt,
+      agency: "Texas Parks and Wildlife Department",
+      sourceUrl: TPWD_PUBLIC_HUNT_MAPSERVER,
+      outdoorAnnualUrl: guide?.huntingUrl,
+      muleDeerDrawListed,
+      drawCatalogUrl: muleDeerDrawListed ? TPWD_DRAWN_HUNT_CATALOG : undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function enrichIdentifyWithTexasSources(
+  result: IdentifyResult,
+  point: LonLat,
+  options?: { fetchImpl?: typeof fetch; timeoutMs?: number; stateCode?: string },
+): Promise<IdentifyResult> {
+  const stateCode = options?.stateCode;
+  if (stateCode && stateCode !== "TX") {
+    return result;
+  }
+  const [parcel, publishedRegs] = await Promise.all([
+    queryTexasParcelAt(point, options),
+    queryTpwdPublishedRegsAt(point, { ...options, stateCode: stateCode ?? "TX" }),
+  ]);
+  return {
+    ...result,
+    parcel,
+    publishedRegs,
+  };
 }

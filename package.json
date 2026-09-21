@@ -12,8 +12,8 @@
     "dcdev": "npm run dcdev -w @huntos/mobile",
     "mobile": "npm run dcdev -w @huntos/mobile",
     "build": "npm run build -w @huntos/core && npm run build -w @huntos/web",
-    "lint": "npm run lint -w @huntos/web",
-    "typecheck": "npm run typecheck -w @huntos/core && npm run typecheck -w @huntos/web",
+    "lint": "npm run lint -w @huntos/web && npm run lint -w @huntos/mobile",
+    "typecheck": "npm run typecheck -w @huntos/core && npm run typecheck -w @huntos/web && npm run typecheck -w @huntos/mobile",
     "test": "npm run test -w @huntos/core",
     "test:all": "npm run test -w @huntos/core && npm run test -w @huntos/web"
   },

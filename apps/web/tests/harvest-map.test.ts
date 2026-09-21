@@ -37,5 +37,6 @@ describe("kill map layers", () => {
     const layers = defaultLayers();
     expect(layers.kills).toBe(true);
     expect(layers.killHeat).toBe(true);
+    expect(layers.publicHuntAreas).toBe(true);
   });
 });
